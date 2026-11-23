@@ -1,8 +1,9 @@
 # LODEON Customizer Roadmap
 
-Implementation requested on 2026-11-22. **Progress: 1 of 7 review steps complete.**
-The v1 protocol and browser feasibility check are ready for review. The next
-step delivers the shared model runtime and local service foundation. This is
+Implementation requested on 2026-11-22. The Step 1 browser check is complete
+for individual model offers. Step 2 remains open for Package configuration
+and delivery. The wheel and local executor have prototype evidence. The
+broker and default-model additions to the public protocol still need review. This is
 the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
 coordinated review steps, including component delivery and Core integration.
 
@@ -34,13 +35,13 @@ Follow-Ups, proposals and the mandatory final Answer Stage. The local service
 executes model calls only. Model computation can be local without making the
 server-orchestrated conversation private from the instance operator.
 
-This release does not implement Git transfer, project parameter-editing forms,
-a model/API-key configuration GUI, a browser secret vault, personal Brokers,
-hybrid Broker configuration, multiple simultaneous service connections in one
-tab, provider token streaming or a general runtime Package/plugin loader.
-Those features require their own decisions. Existing installed Brokers and
-Virtual Models retain their current behavior; a headless client without the
-browser relay cannot select a personal target in this release.
+Personal brokers may combine local and instance model profiles from the first
+release. The local management UI is part of the design from the outset.
+Git transfer, hosted project parameter-editing forms, a browser secret vault,
+multiple simultaneous service connections in one tab, provider token streaming
+and a general runtime Package/plugin loader are outside this release.
+Installed Brokers and Virtual Models retain their current behavior. Personal
+targets require a client with the browser relay.
 
 ## Component Ownership And Future Scope
 
@@ -71,11 +72,39 @@ here, not in a second model-only repository.
 
 ## Binding Contracts
 
+### Local Setup And Configuration Editing
+
+- Distribute a single `docker-compose.yml` that starts the prebuilt image from
+  the GitLab Container Registry with `docker compose up -d`. Build its wheel
+  from the current Core revision for that release. The user needs neither
+  repository to start the service.
+- Ship a regular LODEON Package with `lodeon.package.yml` and a root
+  `config.yml`. On first start, create `data/` beside the Compose file and
+  initialize `data/config.yml` from the packaged configuration only if absent.
+  The service can start with zero models and zero keys. Restarts and image
+  updates preserve an existing file.
+- Compose mounts `data/`. The model capability reads `data/models/.env`
+  directly when keys are needed. Model definitions refer to keys with the
+  existing `apiKeyEnv` field. A key can be changed for subsequent calls
+  without recreating the container. The entire personal `data/` directory
+  stays out of version control and image builds.
+- The text editor and the small local Customizer UI share one editable file,
+  `data/config.yml`, and the Core Package resolver and schema. Saving a model,
+  broker or default in the UI updates that file directly. A save must retain
+  unrelated YAML settings and detect intervening file edits before replacing
+  them. Invalid edits leave the last valid configuration available. Rotating
+  a key under the same name updates only the model credentials file. The UI
+  can show whether a key is configured without returning its stored value.
+- The local UI owns configuration edits. Hosted **Settings → Connect personal
+  models** owns pairing and selection. A model invocation grant conveys no
+  administrative rights. Keep the shared connection service separate from the
+  models capability so future capabilities can own their credentials and grants.
+
 ### Configuration And Target Identity
 
 - Local YAML uses the existing model-profile contract, including provider,
   model, endpoint, generation, caching and optional description/cost settings.
-  Environment references resolve only in the local service's environment.
+  Personal model credentials resolve in the local model capability.
   No remote instance secret names, paths or configuration are resolved locally.
 - The local service advertises a strict public catalog, never its raw YAML,
   credentials, environment-variable names or administrative configuration.
@@ -85,18 +114,22 @@ here, not in a second model-only repository.
 - The backend explicitly permits delegation through an owned configuration
   contract and the existing authorization policy. Delegation cannot enable a
   disabled Assistant, bypass KG restrictions or enlarge operator resource
-  limits. Ordinary installed-target defaults and limit semantics stay intact.
+  limits. Core rechecks direct access to each instance model before a personal
+  broker invokes it as router, worker or fallback. Local grants control
+  personal targets. As in Core with authentication disabled, a local profile's
+  `access.allowedGroups` is valid YAML and supplies no local authorization.
 - A personal target works with zero installed models, without fabricating an
   installed default model. The Connect action remains reachable in that state.
-- Personal profiles remain configuration, not automatically selected defaults
-  for the hosted instance. Project references do not contain the local service
+- On connection, sort personal and instance targets alphabetically by display
+  label. Select an available Customizer `assistant.defaultModel` immediately
+  for the connected user. Project references do not contain the local service
   address, pairing grant, provider endpoint or credentials.
 
 ### Two Independent Trust Boundaries
 
 - Pairing with the local service requires explicit local approval of an exact
-  LODEON origin. A one-time, locally issued pairing credential may be used; no
-  key-editing GUI is required. No wildcard-origin access, port scanning or
+  LODEON origin. A one-time, locally issued pairing credential may be used.
+  No wildcard-origin access, port scanning or
   automatic connection on project import is introduced.
 - Provider keys stay in the user-controlled service and go only to the locally
   configured provider. Neither the hosted frontend nor its backend receives
@@ -223,12 +256,11 @@ they reach a browser/remote exchange. Resolve how local and operator execution
 bounds combine, display restrictions and reject incompatible settings without
 silent parameter rewriting. Do not change installed-model semantics.
 
-In this repository, establish the minimal component/package manifest and
-service foundation against that runtime. Read canonical model-profile YAML,
-resolve local environment references, provide secret-free Ollama and native
-provider examples, and expose only the strict public catalog. Unsupported
-non-model instance sections must not be silently adopted. No model weights are
-downloaded and no model/key editor is added.
+Deliver the Package, registry image, Compose startup and local files described
+above. Replace the prototype examples and restricted loader with the canonical
+Package configuration and resolver. Check first start from the Compose file
+alone and restart with a pre-existing personal configuration. Review the
+local UI save flow against those same files.
 
 **Review:** focused existing provider/gateway tests pass; a neutral consumer can
 load the artifact, validate an Ollama and keyed-provider profile, and produce a
@@ -236,10 +268,37 @@ normalized completion without copying provider code. Inspect a sentinel-secret
 projection. Customizer implementation and operational progress are recorded
 here.
 
+**Prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
+loads its adapters from site-packages. The independent Customizer image
+consumes the same wheel through the SHA-256 in `runtime.lock`. Its local
+CLI reads `assistant.modelProfiles`, resolves local environment references
+and returns the v1 allowlisted catalog. Schema and runtime checks reject
+incompatible generation settings and call bounds before provider execution.
+Turn-level policy and grant-wide reservations belong to Step 3.
+
+The 70 focused Core gateway, provider, profile and application-composition
+tests pass. Four offline Customizer tests cover catalog filtering, configuration
+rejection, keyed request preparation, normalized native Tool calls, safe errors
+and limits. A native Anthropic HTTP fixture received one request with the
+synthetic key and echoed it in a 401 response. The executor returned only
+`assistant.model.credentials_rejected`. Captured diagnostics and the public
+catalog contained no test key. In a separate live check the standalone image sent
+one bounded request to the already installed Ollama model `gemma4:12b`. Its
+normalized answer was `Ready`, finish reason `stop`, with 23 input and 38 output
+tokens. This exercises local execution. Browser delegation and the full
+SPARQL/Answer workflow have separate acceptance steps.
+
+The broader Core API run passed 660 of 661 tests. The pre-existing
+`test_assistant_status_exposes_only_safe_ui_flags` still expects three initial
+image previews. Core's committed configuration specifies twelve.
+
 ### Step 3 — Implement The Backend Delegation Transport
 
-Add a request-local delegated execution path at the existing gateway. Implement
-the frozen browser exchange on the current HTTP stack, bounded transient state,
+Review the broker/default additions to the individual-model protocol before
+implementing them. At connection time resolve mixed broker members against
+local grants and directly authorized instance model profiles. An unresolved
+or ambiguous member makes the affected broker unavailable. Implement the
+request-local exchange at the existing gateway with bounded transient state,
 owner validation, single-use result correlation and cleanup. Reuse current
 phase/cancellation services; retain no completed-call database or server-side
 personal profile registry.
@@ -262,28 +321,32 @@ installed-model requests and protected graph access retain their behavior.
 
 ### Step 4 — Add Connect Personal Models And Catalog Composition
 
-Use the existing Settings/menu/modal patterns for service address, pairing,
-connection status and disconnect. No model editor or secret input. Store
-active grants in tab memory, separate from project data; reconnection must not
-be authorized by an imported project. A compatible service/protocol is checked
+Use the existing hosted Settings/menu/modal patterns for service address,
+pairing, connection status and disconnect. Local editing belongs to the
+Customizer. Store active grants in tab memory, separate from project data.
+Reconnection requires local approval. A compatible service/protocol is checked
 before its public catalog is accepted. Connecting/catalog discovery performs
 no model inference.
 
 Compose installed and personal targets in the existing selector and Model
-information view, with unambiguous source and unchanged installed ordering.
+information view, with unambiguous source, combined alphabetical ordering
+and immediate application of an available personal default.
 Retain a stable personal selection in the project contract without a grant or
 service address. Only one personal service is connected per tab initially;
 separate tabs/origins have independently scoped connections. The action must
 work when the instance has no installed models and remain unavailable when the
 operator disables this capability.
 
-Deliver the actual Customizer as a reproducible Docker service with a minimal
-local/CLI pairing mechanism and documented start/stop/configuration workflow.
+Document startup and pairing for the Compose service delivered in Step 2.
 Publish ports on loopback only; require no Docker socket, privileged container
 or operator tunnel. Document host Ollama reachability and supported browser
 permissions. Keep local secret inputs out of version control and generic logs.
 Make configuration reload and connection revocation behavior explicit; a new
 vault or persistent administrative database is not part of this first release.
+
+To review the proposed local UI, change a model's temperature, save, and
+inspect its existing profile in `data/config.yml`. Then edit that value by
+hand and reopen the form. It must show the value from the file.
 
 **Review:** pair, inspect/select an actual local offer, disconnect and reconnect.
 Verify same-label collision handling, zero-installed-model operation, keyboard
@@ -302,8 +365,9 @@ limit increases or changes to existing follow-up decisions.
 
 Connection/catalog identity must participate in probe-cache applicability;
 one user's or an earlier connection's successful probe cannot certify another.
-Existing installed Brokers retain their routing; this release adds no personal
-Broker editor or implicit mixing of dynamic targets into installed Brokers.
+Use the existing Core broker dispatcher for personal mixed brokers. Verify a
+personal broker using a local worker and an authorized instance worker, and
+the denial of an instance member the user cannot select directly.
 
 **Review:** a real local Ollama model completes a question, structured query
 handoff, real Core-executed SPARQL result and final answer. A controlled native

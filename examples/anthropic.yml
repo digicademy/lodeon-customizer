@@ -1,0 +1,9 @@
+assistant:
+  modelProfiles:
+    personal-sonnet:
+      label: Personal Sonnet
+      provider: anthropic
+      model: claude-sonnet-4-6
+      baseURL: https://api.anthropic.com
+      apiKeyEnv: PERSONAL_ANTHROPIC_API_KEY
+      promptCaching: {enabled: false, retention: default}

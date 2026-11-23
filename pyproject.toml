@@ -1,0 +1,13 @@
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "lodeon-customizer"
+version = "0.1.0"
+description = "Local configuration and execution of personal LODEON models"
+requires-python = ">=3.12"
+dependencies = ["lodeon-model-runtime==0.1.0", "PyYAML==6.0.3"]
+
+[project.scripts]
+lodeon-customizer = "lodeon_customizer.cli:main"

@@ -1,0 +1,10 @@
+assistant:
+  modelProfiles:
+    local-gemma:
+      label: Local Gemma
+      provider: ollama
+      model: gemma4:12b
+      baseURLEnv: OLLAMA_BASE_URL
+      generation: {temperature: 0}
+      promptCaching: {enabled: false, retention: default}
+      limits: {maxOutputTokens: 256, modelRequestTimeoutSeconds: 90}

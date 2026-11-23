@@ -2,7 +2,14 @@
 
 This is the implementation contract for the first capability. The executable
 Step 1 counterpart exercises pairing, catalog access and browser security.
-The production service, Assistant routes and Settings integration are subsequent steps.
+The installed runtime now validates catalog and result payloads against
+`lodeon_model_runtime/personal-models-v1.schema.json` in the wheel. The
+production HTTP service, Assistant routes and Settings integration are subsequent steps.
+
+The envelopes below describe individual model offers. The approved mixed
+brokers and connected-user default still need a protocol revision before
+implementation. Local administration uses the Customizer's own UI and files.
+The pairing grant described here cannot authorize configuration or key edits.
 
 ## Local connection
 
@@ -64,6 +71,9 @@ Tool arguments and message content follow their existing Core contracts.
 | `error = {code}` | Inside failure | Existing allowlisted Core model error codes or the protocol codes below. Localize at the receiver. Exclude raw provider bodies, exception strings, headers and stack traces. |
 
 The invocation is the single object formed by the two Core-to-local call rows.
+For delegated calls, measure input characters in the compact UTF-8 JSON text
+of `{"messages":…,"tools":…}` before provider translation. Count Unicode
+code points, preserve non-ASCII characters, and use no separator whitespace.
 Core prepares the context and validates returned Tool calls through its normal
 Tool Loop. Local limits or an advertised price cannot grant access to Core
 resources. Core takes the lower of its delegated budget and each advertised
@@ -140,9 +150,9 @@ Core maps them to its registered errors. Never forward free-form diagnostics.
 
 ## Shared runtime delivery
 
-Step 2 builds one Core-owned Python wheel, distribution `lodeon-model-runtime`,
-from the canonical profile validator, provider adapters and completion
-normalization now in `api/models/{profiles,providers,gateway,contracts}.py`.
+Core builds the Python wheel `lodeon-model-runtime` from
+`api/lodeon_model_runtime/`. The `model-runtime-wheel` target in
+`api/Dockerfile` exports the artifact. Version 0.1.0 uses LiteLLM 1.104.0.
 The Core gateway remains the owner of request orchestration, tracing, cost and
 provenance. Core and Customizer install the same wheel. The Customizer Docker
 build consumes an exact-version wheel from a build-time wheelhouse with its
