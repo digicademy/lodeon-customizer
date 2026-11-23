@@ -4,8 +4,8 @@ This repository owns the seven review steps for the Customizer and its Core
 integration. The approved delivery architecture is an instance-independent
 native desktop app for Windows, macOS and Linux. Desktop packaging supersedes
 the container prototype outright. There is no compatibility or migration path.
-The local foundation and Core exchange exist. Desktop release acceptance,
-personal routed prompts and the hosted Settings client remain open.
+The local foundation, Core exchange and personal routed prompt delivery are implemented.
+The next feature step is the hosted Settings connection. Desktop release acceptance remains open.
 
 LODEON Customizer is the fixed product/component name. Its first release
 provides personal model connections; its longer-term role is a user-controlled
@@ -292,9 +292,23 @@ checks, catalog and selected-broker disclosure, a provider fixture, replay,
 early cancellation, budgets and disconnect.
 
 **Decisions.** Local approval is the instance URL entered in the desktop app.
-A personal routed broker supplies its own routing prompt. Prompt delivery at
-selection still needs implementation; until then Core rejects personal
-routed policies at reservation. A fixed policy needs no prompt delivery.
+A personal routed broker supplies its own routing prompt using the canonical
+local registry and Markdown file. The Customizer discloses the template only
+on broker selection. Core validates and renders it for that router call.
+Missing prompts block the affected selection; fixed-only brokers use no
+template. Core requires no per-user routing prompt registration.
+
+**Step 3 verification, 2026-11-23.** The package check loads a real personal
+registry, exercises selected-broker disclosure over HTTP, and checks
+missing-file behavior on reload. A Core HTTP probe exercises reservation,
+the rendered request to a personal router, the returned selection, dispatch
+to an authorized instance worker, and the final probe result. Provider
+responses in this check are controlled. All five package checks and 77
+focused Core checks passed, including an ID collision with a hosted prompt
+and the expanded input limit. The extracted macOS arm64 development archive
+also served the configured mixed broker and disclosed its owner-supplied
+prompt only on selection. Step 3 is complete at the transport boundary.
+Step 4 delivers the hosted connection, catalog composition and selection UI.
 
 **Review:** a neutral browser counterpart completes a request. A second user,
 anonymous tab or wrong operation cannot read its model input or submit its

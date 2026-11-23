@@ -11,6 +11,13 @@ from uuid import UUID, uuid4
 
 from dotenv.parser import parse_stream
 from resolver.assembler import resolve_personal_model_configuration
+from resolver.errors import ConfigResolverError
+from resolver.product_validation import ResolvedPackageReader
+from resolver.resource_schemas import (
+    BROKER_ROUTING_VARIABLES,
+    valid_broker_routing_prompt,
+    validate_prompt_registry,
+)
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
@@ -69,6 +76,42 @@ def load_configuration(config: Path) -> dict:
     return resolve_personal_model_configuration(
         core_config=core_config, package_root=package, personal_config=config,
     )
+
+
+def load_routing_prompts(data: Path, registry_file: str, brokers: dict) -> dict[str, str]:
+    """Snapshot only the Markdown explicitly referenced by personal routed brokers."""
+    ids = {
+        broker["router"]["prompt"] for broker in brokers.values()
+        if any(task["strategy"] == "routed" for task in broker["tasks"].values())
+    }
+    if not ids:
+        return {}
+    reader = ResolvedPackageReader(data)
+    try:
+        registry_path = reader.path(registry_file)
+        if not registry_path.is_file() or registry_path.suffix.lower() not in {".yaml", ".yml"}:
+            return {}
+        registry = reader.load_yaml(registry_file)
+        # Only prompt definitions execute here. Package chains can refer to hosted entries.
+        validate_prompt_registry({**registry, "chains": {}})
+    except (ConfigResolverError, OSError, ValueError, RecursionError):
+        return {}
+
+    prompts = {}
+    for prompt_id in ids:
+        entry = registry["prompts"].get(prompt_id)
+        if not entry or not BROKER_ROUTING_VARIABLES.issubset(entry["variables"]):
+            continue
+        try:
+            path = reader.path(Path(registry_file).parent / entry["file"])
+            if not path.is_file() or path.suffix.lower() != ".md":
+                continue
+            content = path.read_text(encoding="utf-8").strip()
+        except (ConfigResolverError, OSError, ValueError):
+            continue
+        if valid_broker_routing_prompt(content):
+            prompts[prompt_id] = content
+    return prompts
 
 
 def instance_origin(address):

@@ -20,6 +20,34 @@ The first launch initializes `data/config.yml` from the packaged defaults. Zero 
 
 The hosted instance owns orchestration, tools, SPARQL and final synthesis. The browser relays a prepared model call and its result. Connecting a personal model gives the instance access to the public offer and call results. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
 
+## Configure a personal routing prompt
+
+A broker that chooses among candidate models uses the prompt ID in its
+`router.prompt` field. For example, for `router.prompt: choose-worker`,
+add this entry to `data/runtime/prompts/registry.yml`. If you set
+`assistant.promptRegistryFile`, use that path relative to `data/` instead.
+
+```yaml
+schemaVersion: 1
+prompts:
+  choose-worker:
+    file: broker/choose-worker.md
+    variables: [task, question, conversation_context, language, tools, evidence, candidates, objective]
+```
+
+Create `broker/choose-worker.md` beside that registry, for example:
+
+```markdown
+Select one model for {{task}}. The user's question is {{question}}.
+Choose from {{candidates}} according to {{objective}}. Return only its ID.
+```
+
+Save the local settings or restart to load the files. Selecting that broker
+for an operation shares this template with the instance. The model list shows
+only public summaries. The router sees the rendered prompt and Core checks
+its choice against the task's candidates. A broker using only fixed tasks
+needs no local prompt file.
+
 ## Building and accepting a desktop release
 
 For maintainers, from the Customizer checkout with native CPython 3.12:

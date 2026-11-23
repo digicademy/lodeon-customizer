@@ -26,6 +26,7 @@ STATUS = {
     "denied": 403,
     "invalid_request": 400,
     "conflict": 409,
+    "routing_prompt_unavailable": 409,
     "closed": 410,
     "busy": 429,
     "unsupported_version": 404,

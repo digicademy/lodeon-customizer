@@ -12,7 +12,7 @@ from lodeon_model_runtime.wire import validate_payload
 from resolver.configuration_schema import validate_delegated_broker
 from resolver.errors import ConfigResolverError
 
-from .configuration import ConfigError, instance_origin, load_configuration, read_model_environment
+from .configuration import ConfigError, instance_origin, load_configuration, load_routing_prompts, read_model_environment
 
 
 def _resolve(configured, environment):
@@ -53,6 +53,7 @@ class LocalModels:
         self._environment = environment
         self.default_model = assistant.get("defaultModel")
         self.brokers = assistant["modelBrokers"] if assistant["enabled"] else {}
+        self._routing_prompts = {}
 
     @classmethod
     def load(cls, path: Path, service_id: UUID, environment: Mapping[str, str] | None = None):
@@ -61,7 +62,9 @@ class LocalModels:
             assistant = config["assistant"]
             for profile_id, profile in assistant["modelProfiles"].items():
                 validate_model_profile_contract(profile_id, profile)
-            return cls(service_id, assistant, path.parent / "models" / ".env", environment, config.get("instance", ""))
+            models = cls(service_id, assistant, path.parent / "models" / ".env", environment, config.get("instance", ""))
+            models._routing_prompts = load_routing_prompts(path.parent, assistant["promptRegistryFile"], models.brokers)
+            return models
         except (OSError, ValueError, ConfigResolverError, RecursionError):
             raise ConfigError("invalid_config") from None
 
@@ -147,6 +150,11 @@ class LocalModels:
             "policy": policy,
             "models": self.catalog(local_members)["models"],
         }
+        if any(task["strategy"] == "routed" for task in policy["tasks"].values()):
+            template = self._routing_prompts.get(policy["router"]["prompt"])
+            if template is None:
+                raise ValueError("routing_prompt_unavailable")
+            selection["routingPrompt"] = template
         validate_payload("selectedBroker", selection)
         return selection
 

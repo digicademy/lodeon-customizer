@@ -173,7 +173,8 @@ optionally `defaultTarget`. A broker summary contains its target, label,
 optional description and typed member references. The browser checks those
 references against both authorized catalogs. When an operation selects a
 broker, `POST /v1/broker` takes `{target, revision}` with the local grant.
-Its response contains `{target, members, models, policy}`. Members identify
+Its response contains `{target, members, models, policy}` and, for a policy
+with a routed task, the string `routingPrompt`. Members identify
 their source and profile; personal members also identify their local service.
 A broker reservation carries this object in `broker` in place of `offer`.
 Core validates its closed native policy and membership before reserving.
@@ -191,11 +192,17 @@ Core validates its closed native policy and membership before reserving.
   The local owner can see what a broker grant discloses. Endpoints, provider
   credentials, environment names and the rest of the local configuration stay
   on the user's machine.
-- **For routed tasks**, the approved target is a routing prompt supplied by
-  the personal broker's owner. The hosted instance requires no per-user prompt
-  registration. Conveying that prompt at broker selection is pending. Core
-  currently rejects personal routed policies. Fixed policies use their
-  configured workers directly.
+- **For routed tasks**, the Customizer snapshots the registered UTF-8 Markdown
+  template for `policy.router.prompt` when loading local configuration. The
+  selected-broker response carries its text. Paths, the registry and unrelated
+  templates stay local. A fixed-only policy omits `routingPrompt`. Missing
+  or unusable local templates return `409 routing_prompt_unavailable` on
+  selection. Core validates the submitted template at reservation and renders
+  it only for that operation's router. The router's input limit also applies
+  to the expanded text. A hosted or KG prompt with the same ID has no effect.
+  Full tracing can record the rendered model input and the template's logical
+  ID and content hash. Only put text in the routing file that may be shared
+  with the connected instance and the router's provider.
 
 For example, a personal broker can assign planning to local Ollama and query
 writing to an instance model. Core delegates the planning call, checks the

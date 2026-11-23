@@ -1,12 +1,17 @@
 """Exercise the production loopback service with a local grant and one provider fixture."""
 
 import json
+import tempfile
 import threading
 import unittest
 from http.client import HTTPConnection
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
+
+import yaml
+from resolver.resource_schemas import BROKER_ROUTING_VARIABLES
 
 from lodeon_customizer.http_service import ModelService
 from lodeon_customizer.profiles import LocalModels
@@ -32,28 +37,41 @@ class TransportTest(unittest.TestCase):
             "maxOutputTokens": 32,
             "modelRequestTimeoutSeconds": 5,
         }
-        models = LocalModels(
-            uuid4(),
-            {
-                "enabled": True,
-                "modelProfiles": {
-                    "local": {
-                        "provider": "ollama",
-                        "label": "Local",
-                        "model": "private-native",
-                        "baseURL": "http://localhost:11434",
-                        "promptCaching": {"enabled": False, "retention": "default"},
-                    }
-                },
-                "modelBrokers": {"mixed": broker, "other": {**broker, "label": "Other"}},
-                "limits": limits,
-                "defaultModel": "mixed",
-            },
-            None,
-            {},
-        )
         origin = "https://lodeon.example"
-        models.origin = origin
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        data = Path(directory.name)
+        root = data / "runtime/prompts"
+        root.mkdir(parents=True)
+        (root / "registry.yml").write_text(yaml.safe_dump({
+            "schemaVersion": 1,
+            "prompts": {"router": {"file": "route.md", "variables": sorted(BROKER_ROUTING_VARIABLES)}},
+            "chains": {"chat": [{"prompt": "assistant-guidance", "role": "system"}]},
+        }), encoding="utf-8")
+        template = "Private routing instructions for {{candidates}}"
+        prompt_file = root / "route.md"
+        prompt_file.write_text(template, encoding="utf-8")
+        config = data / "config.yml"
+        routed = {**broker, "tasks": {**tasks, "query": {
+            "strategy": "routed", "candidates": ["hosted"], "fallbacks": ["local"],
+        }}}
+        config.write_text(yaml.safe_dump({"instance": origin, "assistant": {
+            "enabled": True,
+            "modelProfiles": {"local": {
+                "provider": "ollama", "label": "Local", "model": "private-native",
+                "baseURL": "http://localhost:11434",
+                "promptCaching": {"enabled": False, "retention": "default"},
+            }},
+            "modelBrokers": {"mixed": routed, "other": {**broker, "label": "Other"}},
+            "limits": limits, "defaultModel": "mixed",
+        }}), encoding="utf-8")
+        identity = uuid4()
+        models = LocalModels.load(config, identity)
+        self.assertNotIn("routingPrompt", models.selected_broker(models.target("other"), {"local", "other"}))
+        prompt_file.unlink()
+        reloaded = LocalModels.load(config, identity)
+        with self.assertRaisesRegex(ValueError, "routing_prompt_unavailable"):
+            reloaded.selected_broker(reloaded.target("mixed"), {"local", "mixed"})
         server = ModelService(("127.0.0.1", 0), models)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.server_close)
@@ -92,9 +110,12 @@ class TransportTest(unittest.TestCase):
         self.assertEqual([b["target"]["profileId"] for b in catalog["brokers"]], ["mixed"])
         self.assertEqual(catalog["defaultTarget"], catalog["brokers"][0]["target"])
         self.assertNotIn("private", json.dumps(catalog))
+        self.assertNotIn(template, json.dumps(catalog))
         choice = {"target": catalog["defaultTarget"], "revision": catalog["revision"]}
         status, selected = request("broker", token, choice)
         self.assertEqual(status, 200)
+        self.assertEqual(selected["routingPrompt"], template)
+        self.assertNotIn(str(root), json.dumps(selected))
         self.assertEqual(selected["policy"]["router"]["objective"], "private goal")
         self.assertEqual(
             request(
