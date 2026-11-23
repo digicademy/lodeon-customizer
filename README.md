@@ -10,10 +10,11 @@ links a connection through Settings and receives only the public information
 and operation results that this connection permits. Connecting does not merge
 the instance's configuration with the local secret store or expose its contents.
 
-**Current status: planning only. No runnable service is implemented.** The
-complete feature plan and its review steps are owned by [ROADMAP.md](ROADMAP.md)
-in this repository. Generic Core interface decisions are maintained separately
-in the independent lodeon-roadmap repository.
+**Current status.** The [v1 protocol](PROTOCOL.md) defines the connection and
+model-call exchange. A disposable test service demonstrates pairing and catalog
+access from a real HTTPS page. The production service and the Settings action
+are still pending. Browser results and review steps are in the
+[Customizer roadmap](ROADMAP.md).
 
 ## First Capability: Personal Models
 

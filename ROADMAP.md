@@ -1,8 +1,9 @@
 # LODEON Customizer Roadmap
 
-Implementation requested on 2026-11-22. **Progress: 0 of 7 review steps complete;
-runtime implementation has not started.** This is the authoritative feature
-plan in the user-created lodeon-customizer repository. It owns all seven
+Implementation requested on 2026-11-22. **Progress: 1 of 7 review steps complete.**
+The v1 protocol and browser feasibility check are ready for review. The next
+step delivers the shared model runtime and local service foundation. This is
+the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
 coordinated review steps, including component delivery and Core integration.
 
 LODEON Customizer is the fixed product/component name. Its first release
@@ -158,6 +159,56 @@ Do not disable browser security or use an instance proxy as a workaround.
 **Review:** inspect every transmitted field and the recorded successful browser
 connection. Demonstrate that an unapproved origin cannot pair or invoke. The
 prototype is intermediate evidence, not the completed feature.
+
+**Result, 2026-11-23.** The [v1 protocol](PROTOCOL.md) freezes the public
+fields, the two independent credentials used after pairing, the HTTP exchange
+and the pinned Core wheel. The [browser check](checks/browser-connection.cjs)
+loads two real public HTTPS origins with ordinary certificate validation. In
+a fresh test context it pairs from `https://example.com`, reads one synthetic
+model offer, then attempts to reuse the ticket. The browser sends only
+preflights from the second origin, `https://example.org`, for both pairing
+and invocation. No provider is configured. The fixture listens on an ephemeral
+IPv4 loopback port and closes when the check finishes.
+
+| Browser tested | Local transport | Observed result |
+| --- | --- | --- |
+| Chrome for Testing 158.0.8127.36, headless macOS | HTTP | Initial loopback permission was `prompt`. With permission denied no request reached the listener. After the per-origin grant, pairing and catalog returned 200. |
+| Brave 1.100.58, Chromium 158.0.8127.42, headless macOS | HTTP | Same denial and success, with the engine reporting the permission state. |
+| Playwright Firefox 142.0.1, Linux | HTTP | Pairing and catalog returned 200 in the default context. |
+| Playwright WebKit 26.0, Linux | HTTP | Fetch failed with “Not allowed to request resource”. The listener saw no request. |
+| Same WebKit build | HTTPS | Pairing and catalog returned 200 using a certificate for `127.0.0.1` signed by a CA trusted only inside the disposable container. |
+
+Each successful run observed 403 on ticket reuse and both foreign preflights.
+Direct requests with a valid grant and a foreign, null or absent Origin were
+rejected. HTTP runs also checked rejection of an unexpected Host. Chromium
+permission changes used the browser's per-origin permission API in a disposable
+context. The visual permission dialog was not exercised. No grant, certificate
+or setting was installed in the user's normal browser profile.
+
+Core uses real Chromium for smoke checks and documents the CSS floor as Chrome
+111+, Firefox 128+ and Safari 16.4+. The measurements above are specific to
+these builds. Linux WebKit is not a Safari or iOS acceptance run, and the
+oldest supported releases were not tested. Keep trusted loopback HTTPS as an
+explicit option and explain browser refusal in Settings. Where the browser
+blocks the network request, JavaScript may only see a generic fetch failure.
+Chrome documents the separate [local network access permission](https://developer.chrome.com/blog/local-network-access).
+
+To reproduce the Firefox check from the Customizer checkout using Core's
+existing Playwright 1.56.1 test image:
+
+```sh
+docker run --rm --user pwuser -e NODE_PATH=/playwright/node_modules \
+  -v "$PWD/checks:/checks:ro" lodeon-playwright-audio:1.56.1 \
+  node /checks/browser-connection.cjs firefox
+```
+
+Use `webkit` in the same image for the HTTP comparison. For the TLS check,
+supply `CHECK_CERT` and `CHECK_KEY` for a loopback certificate whose IP SAN
+is `127.0.0.1`. Trust its issuing CA in the disposable browser environment
+and set `NODE_EXTRA_CA_CERTS` there for the direct Node checks. For a native
+Chromium with the current loopback permission API, run
+`node checks/browser-connection.cjs chromium` with Node 22+, Playwright Core
+on the module path and `CHROMIUM_PATH` pointing to the executable.
 
 ### Step 2 — Provide The Shared Runtime And Customizer Foundation
 
