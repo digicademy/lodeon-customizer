@@ -1,10 +1,10 @@
 # LODEON Customizer Roadmap
 
 Implementation requested on 2026-11-22. The Step 1 browser check is complete
-for individual model offers. Step 2 now has a locally verified Compose image,
-Package resolver and persistent data directory. Registry publication and an
-anonymous download of the published tag are pending. The
-broker and default-model additions to the public protocol still need review. This is
+for individual model offers. The published Step 2 image passed anonymous pulls
+on both platforms and a fresh Compose start. Public delivery of the standalone
+Compose file is still open. The [Step 3 proposal](PROTOCOL.md#step-3-proposal-for-review)
+on broker policies and the connected user's default is ready for review. This is
 the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
 coordinated review steps, including component delivery and Core integration.
 
@@ -283,9 +283,21 @@ The locally built `0.1.0` image index contains `linux/amd64` and `linux/arm64`.
 The installed catalog command and all four offline Customizer checks passed
 on each image. Docker Desktop ran the AMD64 variant on an ARM64 host.
 
-An unauthenticated Registry v2 client obtained the pull scope for the exact
-project path. The GitLab repository listing was empty and `latest` had no
-manifest. A complete anonymous image pull still requires a published tag.
+**Published release check, 2026-11-23.** GitLab served tag `0.1.0` anonymously
+with image index `sha256:16929fcd16db37b14d98fdc72865dc54049e873e081de23e6d5d16dcec548b1f`.
+A client without credentials downloaded both platform manifests and all 25
+distinct config and layer blobs (291,951,750 bytes) and verified their SHA-256
+digests and sizes. Docker ran the published AMD64 catalog on the ARM64 host.
+On ARM64, Compose pulled the tag with an isolated credential-free Docker
+configuration and started from a fresh directory containing only the checkout's
+`docker-compose.yml`. The loopback page returned HTTP 200, the catalog was
+empty, and the service created the packaged configuration, a valid service ID
+and the model directory without any credentials.
+
+At the time of this check the public GitLab `main` branch contained only
+`README.md` and `ROADMAP.md`. The raw Compose download returned HTTP 404.
+Once the Compose file is published, verify its anonymous download against
+the file used for this successful startup.
 
 **Earlier prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
 loads its adapters from site-packages. The independent Customizer image

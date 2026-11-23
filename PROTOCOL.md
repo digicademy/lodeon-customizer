@@ -6,9 +6,10 @@ The installed runtime now validates catalog and result payloads against
 `lodeon_model_runtime/personal-models-v1.schema.json` in the wheel. The
 production HTTP service, Assistant routes and Settings integration are subsequent steps.
 
-The envelopes below describe individual model offers. The approved mixed
-brokers and connected-user default still need a protocol revision before
-implementation. Local administration uses the Customizer's own UI and files.
+The v1 envelopes below describe individual model offers. A
+[Step 3 proposal](#step-3-proposal-for-review) describes the additional
+disclosure needed for mixed brokers and a connected-user default. Local
+administration uses the Customizer's own UI and files.
 The pairing grant described here cannot authorize configuration or key edits.
 
 ## Local connection
@@ -158,3 +159,33 @@ provenance. Core and Customizer install the same wheel. The Customizer release b
 from the Core build target and takes the resolver and configuration defaults
 from the same Core checkout. Compose starts the versioned image from the
 GitLab Container Registry. Wire compatibility follows the protocol version.
+
+## Step 3 proposal for review
+
+The following exchange is proposed for the next protocol revision. Image
+`0.1.0` implements the local foundation. Its existing catalog schema describes
+individual models only.
+
+- **On connection**, the tab receives granted model and broker summaries.
+  For a broker it also needs the member IDs to check availability. Each member
+  must resolve uniquely to a locally granted ordinary model or a directly
+  authorized instance model. A missing, inaccessible or ambiguous member
+  makes that broker unavailable. Selecting an available personal default uses
+  its stable target reference from the catalog and takes effect immediately.
+- **When starting an operation with a personal broker**, provide Core with the
+  selected broker's execution policy: bound member references, routing hints,
+  router selection, objective, routing prompt ID, task strategies and ordered
+  fallbacks. Include the public model offers needed for its local calls.
+  The local owner can see what a broker grant discloses. Endpoints, provider
+  credentials, environment names and the rest of the local configuration stay
+  on the user's machine.
+- **For routed tasks**, the proposal uses a broker-routing prompt authorized
+  by the instance. Core resolves its ID locally. If a required routing prompt
+  is unavailable, explain that dependency before execution. A fixed-only
+  broker uses its configured workers directly.
+
+For example, a personal broker can assign planning to local Ollama and query
+writing to an instance model. Core delegates the planning call, checks the
+user's direct access before calling the hosted query worker, and executes any
+accepted SPARQL tool call itself. The local service checks its own grant for
+each personal model call.

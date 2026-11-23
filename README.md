@@ -14,8 +14,8 @@ the instance's configuration with the local secret store or expose its contents.
 
 The release uses a single `docker-compose.yml` and a prebuilt image from the
 [project's Container Registry](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/container_registry).
-Once image tag `0.1.0` has been published, put the Compose file in a personal
-directory and run:
+Image tag `0.1.0` supports anonymous pulls on AMD64 and ARM64. Put this
+Package's `docker-compose.yml` in a personal directory and run:
 
 ```sh
 docker compose up -d
