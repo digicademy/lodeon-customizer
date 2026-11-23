@@ -5,7 +5,7 @@ integration. The approved delivery architecture is an instance-independent
 native desktop app for Windows, macOS and Linux. Desktop packaging supersedes
 the container prototype outright. There is no compatibility or migration path.
 The local foundation, Core exchange and personal routed prompt delivery are implemented.
-Step 4 delivers hosted Settings, catalog composition and portable selection. Step 5 delivers the browser invocation relay. Step 6 reviews provenance, project portability and failure handling. Desktop release acceptance remains open.
+Step 4 delivers hosted Settings, catalog composition and portable selection. Step 5 delivers the browser invocation relay. Step 6 verified provenance, project portability and failure handling. Step 7 is next. Desktop release acceptance remains open.
 
 LODEON Customizer is the fixed product/component name. Its first release
 provides personal model connections; its longer-term role is a user-controlled
@@ -425,6 +425,31 @@ model selection. Import never pairs, invokes or silently substitutes a model.
 Check disconnect during a call, local service stop, timeout, duplicate/late
 reply and logout/revocation. Inspect both sides' errors/logs and Core artifacts
 for a controlled sentinel secret. No new secret is supplied for these checks.
+
+**Step 6 implementation and review, 2026-11-23.** Core records the actual
+execution source for the worker and router. The activity card, readable chat
+export and Analyzer show the origin of personal usage. A call with missing
+token figures still counts once. An incomplete token sum remains unknown.
+
+On macOS arm64, Brave and the native app completed a real KVKG count using
+Ollama. The readable Analyzer report contains four personal model calls
+(plan, query, plan, answer), 13,198 reported tokens, one executed
+`run_sparql_count` and a result of 32,897 triples. The retained conversation
+was exported with its readable Markdown in a named project, imported into a
+fresh browser session and reloaded from IndexedDB. Model choice, model calls
+and Tool evidence survived. Import and reload issued zero pairing or inference
+requests. Stopping the native app during a controlled keyed provider request
+produced `assistant.delegation.connection_failed` after one invocation.
+Focused checks cover disconnect, logout with an outstanding call, deadlines
+and rejection of duplicate and late replies. The controlled credential was
+absent from the reviewed logs, Core traces and decompressed project/report
+archives. The native release matrix belongs to the final acceptance.
+
+The broader Python architecture check also identified two findings already
+present in committed Core. The shared wire validator has an inline typing
+suppression for the jsonschema import, and the MCP SPARQL module inventory
+omits the tracked diagnostics module. Resolve these before freezing the
+inputs for consolidated acceptance.
 
 ### Step 7 — Consolidated Acceptance, Documentation And Closure
 

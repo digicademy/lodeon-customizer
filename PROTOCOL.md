@@ -160,6 +160,16 @@ app resets the budget and invalidates earlier grants. An invocation reserves
 its full output ceiling. Early cancellation consumes one call slot and
 prevents later execution of the same ID within that grant.
 
+### Call history in Core
+
+Core adds `executionSource` to the provenance of each delegated operation's
+worker. Its values are `personal` for a local Customizer invocation and
+`instance` for a hosted member. Core retains router provenance separately
+under `routerMetrics` in kept chats. These fields belong to Core's records.
+The terminal envelope continues to carry only available token measurements.
+Core counts the invocation and measures elapsed time. A missing measurement
+leaves its total unknown.
+
 ## Shared runtime delivery
 
 Each desktop build installs `lodeon-model-runtime` from the same Core revision
