@@ -1,8 +1,8 @@
-stages: [source, desktop, review, acceptance]
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_TAG'
 
-variables:
-  # Until Core merges delegation, use the coordinated Core branch. May be a commit or tag.
-  LODEON_CORE_REF: feature-customizer
+stages: [source, desktop, review, acceptance]
 
 core-source:
   stage: source
@@ -14,17 +14,21 @@ core-source:
       api="$CI_API_V4_URL/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-core/repository"
       auth="JOB-TOKEN: $CI_JOB_TOKEN"
       if [ -n "${LODEON_CORE_READ_TOKEN:-}" ]; then auth="PRIVATE-TOKEN: $LODEON_CORE_READ_TOKEN"; fi
-      ref=$(python -c 'import os,urllib.parse; print(urllib.parse.quote(os.environ["LODEON_CORE_REF"], safe=""))')
-      curl --fail --silent --show-error --header "$auth" "$api/commits/$ref" -o build/revision.json
+      curl --fail --silent --show-error --header "$auth" "$api/commits/refs%2Fheads%2Fmain" -o build/revision.json
       sha=$(python -c 'import json,re; s=json.load(open("build/revision.json"))["id"]; assert re.fullmatch("[0-9a-f]{40,64}",s); print(s)')
       curl --fail --silent --show-error --header "$auth" "$api/archive.tar.gz?sha=$sha" -o build/core.tar.gz
       mkdir -p build/checkout build/core/api build/core/config
       tar -xzf build/core.tar.gz --directory build/checkout --strip-components=1
+      if [ ! -f build/checkout/api/pyproject.toml ] || [ ! -d build/checkout/api/lodeon_model_runtime ]; then
+        echo "Core main at $sha lacks the model runtime required by the Customizer." >&2
+        exit 1
+      fi
       cp build/checkout/LICENSE build/core/
       cp -R build/checkout/api/pyproject.toml build/checkout/api/lodeon_model_runtime build/core/api/
       cp -R build/checkout/config/config.yml build/checkout/config/resolver build/core/config/
       echo "$sha" > build/core/REVISION
   artifacts:
+    access: developer
     paths: [build/core/]
     expire_in: 30 days
 

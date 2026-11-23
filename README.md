@@ -2,15 +2,31 @@
 
 Use your own model in the Assistant of a LODEON instance you already use. The Customizer runs on your computer. It includes its runtime and works with any instance that permits personal models for your session.
 
+## Downloads
+
+Choose **latest** for your computer. These links become available after the first successful `main` pipeline and follow each subsequent successful build. All five archives undergo automated checks. The current `latest` workflow produces Windows builds without release signing and macOS builds without Developer ID signing or notarization.
+
+| Platform | Latest download |
+| --- | --- |
+| Windows · x64 | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-windows-x86_64.zip?job=native-app%3A%20%5Bwindows-x86_64%5D) |
+| macOS · Apple silicon | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-arm64.zip?job=native-app%3A%20%5Bmacos-arm64%5D) |
+| macOS · Intel | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-x86_64.zip?job=native-app%3A%20%5Bmacos-x86_64%5D) |
+| Linux · x64 | [Download TAR.GZ](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-x86_64.tar.gz?job=native-app%3A%20%5Blinux-x86_64%5D) |
+| Linux · ARM64 | [Download TAR.GZ](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-arm64.tar.gz?job=native-app%3A%20%5Blinux-arm64%5D) |
+
+[Latest build checksums](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/SHA256SUMS?job=accepted-archives) · [Bundled Core revision](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/CORE-REVISION?job=accepted-archives)
+
+If your browser displays a development download as text, use **Save link as** on the platform link and keep the `.zip` or `.tar.gz` extension. [GitLab single-file artifact downloads](https://docs.gitlab.com/api/job_artifacts/#download-a-single-artifact-file-by-reference-name)
+
 ## Get the app and connect your first model
 
-1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open the public [GitLab Releases](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases) page in a new tab. **Setup and user guide** opens this README. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
-2. In the newest release, choose the download for your computer from the table below. Extract the entire archive to a folder on your computer and open the app. Keep the extracted files together.
+1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **Setup and user guide** opens these instructions. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
+2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
 3. The app opens a **local settings page** in your default browser. Enter the HTTPS address of the LODEON instance you use, including its deployment path, and choose **Save instance**. For example, enter `https://stories.example.org/lodeon/`. This authorizes pages on that browser origin, including other paths on it.
 4. On first launch the model list is empty. Add your first model in the local file shown on the settings page using [Configure a personal model](#configure-a-personal-model) below. You do this once per model.
 5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
-| Your computer | Release download | Open after extraction |
+| Your computer | Platform | Open after extraction |
 | --- | --- | --- |
 | Windows with an Intel or AMD 64-bit processor | **Windows · x64** (ZIP) | `LODEON Customizer.exe` |
 | Mac with an Apple M-series chip | **macOS · Apple silicon** (ZIP) | `LODEON Customizer.app` |
@@ -18,7 +34,7 @@ Use your own model in the Assistant of a LODEON instance you already use. The Cu
 | Linux with glibc on an Intel or AMD 64-bit processor | **Linux · x64** (tar.gz) | `LODEON Customizer` |
 | Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON Customizer` |
 
-On a Mac, **Apple menu → About This Mac** identifies the chip. A release lists the five applications separately from GitLab's automatic source archives. An empty Releases page means a desktop release has yet to be published.
+On a Mac, **Apple menu → About This Mac** identifies the chip.
 
 ## Configure a personal model
 
@@ -82,17 +98,48 @@ only public summaries. The router sees the rendered prompt and Core checks
 its choice against the task's candidates. A broker using only fixed tasks
 needs no local prompt file.
 
-## Building and accepting a desktop release
+## Test a development build
 
-For maintainers, from the Customizer checkout with native CPython 3.12:
+From the LODEON Core root, `--core .` builds against your current Core working tree, including local edits. To use a separate checkout, pass its path to `--core`. Quit any running Customizer first so its local smoke check can use port 8765.
+
+On an Apple Silicon Mac with uv and Python 3.12:
 
 ```sh
-python release/build.py --core /path/to/lodeon-core
+uv run --no-project --python 3.12 python vendor/lodeon-customizer/release/build.py --core . --output vendor/lodeon-customizer/dist/local &&
+ditto -x -k vendor/lodeon-customizer/dist/local/LODEON-Customizer-dev-macos-arm64.zip vendor/lodeon-customizer/dist/local &&
+open "vendor/lodeon-customizer/dist/local/LODEON Customizer.app"
 ```
 
-The build installs the model runtime from that Core source, bundles its matching resolver and defaults, and archives a native application with PyInstaller. It then extracts **that archive** into a fresh directory, isolates the user profile, starts the executable, saves an instance, checks origin restrictions, restarts it, invokes a credentialed local HTTP provider fixture through the bundled runtime and quits. No external model or provider key is needed. Each passing build leaves one archive in `dist/`.
+With native Python 3.12, you can also invoke the same script directly with `python3.12` (Windows: `py -3.12`). Extract the archive for your platform and open the application. To test it with the Assistant, save the HTTPS address of the instance running your chosen Core branch with `assistant.personalModels.enabled` set to `true`. In that instance, select **Settings → Connect personal models → Connect**.
 
-The GitLab pipeline resolves `LODEON_CORE_REF` to one commit for the entire release. It defaults to the coordinated Core feature branch during development. Set it to the intended Core revision for a release. The source job needs read access to Core. For a private checkout, an authorized masked read-only `LODEON_CORE_READ_TOKEN` can be supplied on the release runner. CI uses the runner tags below and checks that Python actually runs on the requested OS and architecture.
+## Publish latest
+
+First merge and push any required Core changes to **lodeon-core/main**. Then merge and push the tested Customizer changes to **lodeon-customizer/main**. That push starts the public build automatically. GitLab resolves Core `main` to one commit for all five platforms. Once the pipeline succeeds, the five [download links](#downloads) serve the new archives.
+
+The pipeline needs the [five native runners](#build-environment). Allow public access to the build artifacts and enable **Settings → CI/CD → Artifacts → Keep artifacts from most recent successful jobs** so the downloads stay available between builds. GitLab serves these files as job artifacts. [GitLab artifact retention](https://docs.gitlab.com/ci/jobs/job_artifacts/#keep-artifacts-from-most-recent-successful-jobs)
+
+### Optional versioned publication
+
+For a future versioned release, the tag jobs also need access to the signing identities on Windows and macOS, and the Package Registry must allow public downloads.
+
+1. **Prepare Core.** Merge any required runtime changes into `lodeon-core/main`. Tagged builds use the same Core `main` source policy as public `latest` builds.
+2. **Push the Customizer release commit to `main`.** Its `pyproject.toml` project version and `lodeon.package.yml` version should both say `0.2.0` for the first release. For subsequent releases, update both files to the new version. Each successful `main` pipeline updates the development downloads automatically.
+3. **Create the Customizer tag.** Open [Code → Tags → New tag](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/tags/new). Enter `v0.2.0` for **Tag name**, select the release commit under **Create from**, and choose **Create tag**. Leave release notes empty if that field is shown. The pipeline creates the Release entry after review. [GitLab tag instructions](https://docs.gitlab.com/user/project/repository/tags/#from-the-ui)
+4. **Approve the desktop builds.** Open [Build → Pipelines](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/pipelines), select the pipeline for **v0.2.0**, and wait for the five **native-app** jobs. Download their artifacts and perform the [desktop review](#desktop-review). Then choose **Play** on **desktop-review**. A job stuck at **Pending** with a missing-runner message needs an online runner with the tag shown on that job.
+5. **Check the publication.** Wait for **accepted-archives** to turn green. Open the [Releases page](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases) in a signed-out browser. **LODEON Customizer 0.2.0 → Assets** contains five native archives, `SHA256SUMS` and `CORE-REVISION`. The [latest reviewed release](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases/permalink/latest) now opens this version.
+
+If you prefer the terminal for step 3, run the following yourself in the Customizer checkout at the already pushed release commit. Continue with step 4 in GitLab.
+
+```sh
+git tag -a v0.2.0 -m "LODEON Customizer 0.2.0"
+git push origin v0.2.0
+```
+
+## Build environment
+
+The build installs the model runtime from the selected Core source, bundles its matching resolver and defaults, and archives a native application with PyInstaller. It then extracts **that archive** into a fresh directory, isolates the user profile, starts the executable, saves an instance, checks origin restrictions, restarts it, invokes a credentialed local HTTP provider fixture through the bundled runtime and quits. No external model or provider key is needed.
+
+The GitLab source job needs read access to Core. It downloads the archive by the resolved commit SHA and supplies those same inputs to all native jobs. For a private checkout, an authorized masked read-only `LODEON_CORE_READ_TOKEN` can be supplied to that job. CI uses the runner tags below and checks that Python actually runs on the requested OS and architecture.
 
 | Runner tag | Deliverable | Release host |
 | --- | --- | --- |
@@ -104,8 +151,8 @@ The GitLab pipeline resolves `LODEON_CORE_REF` to one commit for the entire rele
 
 Use shell runners with Python 3.12 available as `python`, port 8765 free, and standard OS build tools. Build on the oldest OS/glibc version intended for each published binary and record the actual runner OS and architecture. Tagged macOS builds need `MACOS_SIGN_IDENTITY` and `MACOS_NOTARY_PROFILE` in the signing keychain. Tagged Windows builds need `WINDOWS_SIGN_THUMBPRINT` and `WINDOWS_TIMESTAMP_URL`. Signing access belongs on protected release runners/tags. Development candidates can be built unsigned.
 
-For each tag, open **Build → Pipelines** in the Customizer project and select the tag pipeline. Each **native-app** job provides a candidate archive for its platform under its job artifacts. Open the extracted candidates through Finder, Explorer and the Linux desktop as an ordinary user in a clean profile. Verify that the default browser opens, entering the instance works, restarting preserves personal data, and quitting releases the port. From the compatible hosted Settings UI, verify connect, one model call and disconnect in Safari on macOS, Edge on Windows and Firefox on Linux with normal browser security. Record OS version, architecture, browser version and results on the release ticket before confirming the blocking **desktop-review** job.
+## Desktop review
 
-Use a release tag matching the version in `pyproject.toml`, for example `v0.2.0` for version `0.2.0`. After the five native jobs pass and a maintainer approves **desktop-review**, **accepted-archives** uploads the five reviewed archives, `SHA256SUMS` and `CORE-REVISION` to the project's versioned Generic Package Registry. It verifies that each file downloads anonymously with the expected checksum and creates the GitLab Release with clearly named links. Retrying with identical files reuses them. A different file at the same version stops publication.
+Open the extracted candidates through Finder, Explorer and the Linux desktop as an ordinary user in a clean profile. Verify that the default browser opens, entering the instance works, restarting preserves personal data, and quitting releases the port. From the compatible hosted Settings UI, verify connect, one model call and disconnect in Safari on macOS, Edge on Windows and Firefox on Linux with normal browser security. Record OS version, architecture, browser version and results on the release ticket before confirming the blocking **desktop-review** job.
 
-Keep released package versions and their release entries available to the public. These downloads are independent of CI job artifact expiry. Ordinary branch pipelines produce temporary candidates for review. Users go directly to [GitLab Releases](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases).
+After approval, **accepted-archives** uploads the files to the versioned Generic Package Registry, verifies their checksums through anonymous downloads and creates the GitLab Release. A retry reuses identical files. A different file at the same version stops publication. Keep released packages and release entries available to the public. Their lifetime is independent of CI job artifact expiry.

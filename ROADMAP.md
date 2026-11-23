@@ -83,7 +83,9 @@ here, not in a second model-only repository.
   the app preserve personal files.
 - Resolve `apiKeyEnv` from `data/models/.env` at invocation. The packaged
   defaults contain only public configuration. Build, sign and test each
-  native archive from the same coordinated Core revision. The release matrix,
+  platform archive in a pipeline from one resolved Core commit. Public
+  `latest` requires Customizer `main` and Core `main`. Developers test locally
+  against their chosen Core checkout. The release matrix,
   user-data locations and browser review are specified in the [README](README.md).
 
 - The text editor and the small local Customizer UI share one editable file,
@@ -455,8 +457,10 @@ inputs for consolidated acceptance.
 
 ### Step 7 — Consolidated Acceptance, Documentation And Closure
 
-The Assistant's connection dialog links to this repository's README and
-public GitLab Releases. The tagged pipeline publishes the five reviewed
+The Assistant's connection dialog opens this repository's download table and
+setup instructions. The table links to the last successful public `main`
+builds for all five platforms and the bundled Core revision.
+The tagged pipeline publishes the five reviewed
 archives and verification files in the Generic Package Registry. Release
 acceptance still requires a successful tagged run, recorded native browser
 reviews and anonymous access to the published downloads.

@@ -65,7 +65,10 @@ def build(core, work, output, release):
             "--add-data", f"{ROOT / 'lodeon.package.yml'}:resources/package",
             "--add-data", f"{core / 'LICENSE'}:resources/core",
             *flags, ROOT / "release/launch.py", env=env)
-        label = f"LODEON-Customizer-{version}-{SYSTEM}-{ARCH}"
+        channel = version if release else "dev"
+        if not release and os.environ.get("CI_JOB_ID") and os.environ.get("CI_COMMIT_BRANCH") == "main":
+            channel = "latest"
+        label = f"LODEON-Customizer-{channel}-{SYSTEM}-{ARCH}"
         if SYSTEM == "macos":
             bundle = dist / (NAME + ".app")
             archive = stage / (label + ".zip")
