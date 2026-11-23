@@ -2,7 +2,10 @@
 
 This contract covers personal model invocation and broker discovery. The desktop
 app bundles the Core runtime and its public payload schemas. Local model routes, the Core exchange and the hosted Settings catalog client
-are implemented. Browser invocation is the next step.
+are implemented. The Editor also runs the v1 invocation exchange for chat,
+probe and suggestions. Each reservation binds its own grant connection,
+catalog revision, graph and selected target. Personal probes run fresh on the
+active connection. The standard Assistant HTTP response completes the operation.
 
 The v1 envelopes below describe individual model offers. The
 [approved broker contract](#selected-broker-policy-and-personal-default) describes the additional

@@ -5,7 +5,7 @@ integration. The approved delivery architecture is an instance-independent
 native desktop app for Windows, macOS and Linux. Desktop packaging supersedes
 the container prototype outright. There is no compatibility or migration path.
 The local foundation, Core exchange and personal routed prompt delivery are implemented.
-Step 4 delivers hosted Settings, catalog composition and portable selection. The next feature step is the browser invocation relay. Desktop release acceptance remains open.
+Step 4 delivers hosted Settings, catalog composition and portable selection. Step 5 delivers the browser invocation relay. Step 6 reviews provenance, project portability and failure handling. Desktop release acceptance remains open.
 
 LODEON Customizer is the fixed product/component name. Its first release
 provides personal model connections; its longer-term role is a user-controlled
@@ -388,6 +388,25 @@ keyed-provider fixture verifies the same transport and secret boundary without
 paid inference. Check explicit Probe, Suggestions and a normal Node proposal
 using the same established workflows. Model quality failures are recorded as
 such, not repaired with new Core heuristics.
+
+**Step 5 implementation and review, 2026-11-23.** The Editor drives the existing
+Core exchange for personal chat, probe and suggestions. It binds status and stop
+requests to the chat operation, cancels pending calls on disconnect, validates
+returned envelopes and keeps local grants separate from Core operation tokens.
+Personal probes bypass the shared cache. Connecting and opening an imported
+personal selection start no inference.
+
+Brave (Chromium 158, macOS arm64) ran the Editor panel and session controller
+on a controlled HTTPS origin with the extracted native app and an isolated
+Core configuration. With zero installed models, local Ollama `gemma4:12b`
+completed plan → query → plan → answer. Core executed `run_sparql_count` on
+the running KVKG QLever. The final answer and an independent SPARQL count
+both gave 32,897 triples. A follow-up produced a `propose_sparql_node`
+proposal for the same query. A local keyed provider fixture passed the native
+Tool probe and returned a suggestion. A second Core configuration exercised a
+personal broker whose local router chose a directly authorized instance probe
+worker. Core tests also reject unauthorized members. The HTTPS test origin and
+keyed providers were controlled. Ollama and QLever were real.
 
 ### Step 6 — Verify Provenance, Persistence And Failure Boundaries
 
