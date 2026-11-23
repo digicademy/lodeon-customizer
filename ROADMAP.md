@@ -5,7 +5,7 @@ integration. The approved delivery architecture is an instance-independent
 native desktop app for Windows, macOS and Linux. Desktop packaging supersedes
 the container prototype outright. There is no compatibility or migration path.
 The local foundation, Core exchange and personal routed prompt delivery are implemented.
-The next feature step is the hosted Settings connection. Desktop release acceptance remains open.
+Step 4 delivers hosted Settings, catalog composition and portable selection. The next feature step is the browser invocation relay. Desktop release acceptance remains open.
 
 LODEON Customizer is the fixed product/component name. Its first release
 provides personal model connections; its longer-term role is a user-controlled
@@ -345,6 +345,27 @@ Verify same-label collision handling, zero-installed-model operation, keyboard
 and narrow-layout usability, policy rejection and absence of secrets in
 browser-visible catalogs and saved projects. Customizer startup and pairing
 are reviewed from this repository.
+
+**Step 4 implementation and review, 2026-11-23.** Settings connects explicitly
+to the v1 service and accepts a validated public catalog. The Editor preserves
+a disconnected selection, applies an available personal default and disallows
+unresolved broker members. Project and kept-chat model IDs use the existing
+Core representation of the public target. The local management form reads and
+updates an existing YAML profile's temperature with conflict detection.
+
+Brave (Chromium 158.0.8127.42, macOS arm64) exercised the actual Editor panel
+with a controlled HTTPS page, zero installed models and the extracted macOS
+arm64 development archive.
+Keyboard pairing at 390 px, model information, default selection, disconnect
+and reconnect passed. The only loopback requests were connect, targets and
+disconnect. A local form save changed the temperature in YAML and a manual
+file edit appeared on reopening the form. Editor tests cover same-label
+targets, ambiguous workers, denied access, invalid catalogs, late grants
+and restoring a disconnected project selection. All 771 frontend tests, six
+Customizer tests and the Editor lint, format and type checks passed. The
+archive also passed the existing startup, restart and provider fixture checks.
+The cross-platform release
+matrix and the invocation workflow are separate acceptance items.
 
 ### Step 5 — Complete The Existing Assistant Workflow Through Delegation
 

@@ -133,6 +133,30 @@ def instance_origin(address):
 def save_instance(path, address, revision, check):
     """Preserve edited YAML and publish a validated replacement on the same filesystem."""
     instance_origin(address)
+    return _save_settings(path, revision, check, lambda settings: settings.update(instance=address))
+
+
+def save_temperature(path, profile_id, value, revision, check):
+    def edit(settings):
+        assistant = settings.get("assistant")
+        profiles = assistant.get("modelProfiles") if isinstance(assistant, dict) else None
+        profile = profiles.get(profile_id) if isinstance(profiles, dict) else None
+        if not isinstance(profile, dict):
+            raise ConfigError("unknown_profile")
+        if "generation" in profile and not isinstance(profile["generation"], dict):
+            raise ConfigError("invalid_config")
+        if value:
+            temperature = float(value)
+            if not 0 <= temperature <= 2:
+                raise ConfigError("invalid_temperature")
+            profile.setdefault("generation", {})["temperature"] = temperature
+        elif "generation" in profile:
+            profile["generation"].pop("temperature", None)
+
+    return _save_settings(path, revision, check, edit)
+
+
+def _save_settings(path, revision, check, edit):
     original = path.read_bytes()
     if hashlib.sha256(original).hexdigest() != revision:
         raise ConfigError("config_changed")
@@ -144,7 +168,7 @@ def save_instance(path, address, revision, check):
         raise ConfigError("invalid_config") from None
     if not isinstance(settings, dict):
         raise ConfigError("invalid_config")
-    settings["instance"] = address
+    edit(settings)
     output = StringIO()
     yaml.dump(settings, output)
     with NamedTemporaryFile(dir=path.parent, delete=False) as pending:

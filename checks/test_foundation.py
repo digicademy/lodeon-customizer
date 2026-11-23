@@ -1,5 +1,6 @@
 """Verify the wheel consumer and the public boundary using only synthetic credentials."""
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ from uuid import UUID
 
 import yaml
 from lodeon_model_runtime.wire import effective_limits, validate_payload
+from lodeon_customizer.configuration import save_temperature
 from lodeon_customizer.execution import execute_model
 from lodeon_customizer.profiles import ConfigError, LocalModels
 
@@ -86,6 +88,24 @@ class FoundationTest(unittest.TestCase):
         env_path.unlink()
         with self.assertRaisesRegex(ConfigError, "^missing_local_setting$"):
             models.prepare("personal-sonnet", {}, CALL["bounds"], CALL["messages"], [])
+
+    def test_temperature_edit_preserves_configuration_and_detects_a_stale_form(self):
+        path = self.ollama
+        path.write_text("# Personal configuration\n" + path.read_text())
+        revision = hashlib.sha256(path.read_bytes()).hexdigest()
+        def check(candidate):
+            return LocalModels.load(candidate, SERVICE)
+
+        models = save_temperature(path, "local-gemma", "0.65", revision, check)
+        self.assertEqual(models.catalog(models.profile_ids)["models"][0]["generation"]["temperature"], 0.65)
+        self.assertIn("# Personal configuration", path.read_text())
+        saved = path.read_bytes()
+        with self.assertRaisesRegex(ConfigError, "config_changed"):
+            save_temperature(path, "local-gemma", "0", revision, check)
+        self.assertEqual(saved, path.read_bytes())
+        revision = hashlib.sha256(saved).hexdigest()
+        models = save_temperature(path, "local-gemma", "", revision, check)
+        self.assertNotIn("temperature", models.catalog(models.profile_ids)["models"][0]["generation"])
 
     def test_keyed_completion_and_safe_failure(self):
         models = LocalModels.load(

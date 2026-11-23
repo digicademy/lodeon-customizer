@@ -1,8 +1,8 @@
 # LODEON Customizer personal model protocol v1
 
 This contract covers personal model invocation and broker discovery. The desktop
-app bundles the Core runtime and its public payload schemas. Local model routes
-and the Core exchange are implemented. The hosted Settings client is pending.
+app bundles the Core runtime and its public payload schemas. Local model routes, the Core exchange and the hosted Settings catalog client
+are implemented. Browser invocation is the next step.
 
 The v1 envelopes below describe individual model offers. The
 [approved broker contract](#selected-broker-policy-and-personal-default) describes the additional
@@ -16,8 +16,8 @@ The desktop app listens on `http://127.0.0.1:8765`. The user saves one HTTPS
 LODEON instance URL on the app's local settings page. A deployment path is
 retained for display. Browser permission is granted to its serialized origin
 (scheme, hostname and port), which is the boundary a browser can enforce.
-The app starts with no authorized origin. Its local form posts to `/instance`
-or `/quit`; both require the local Host and its own Origin. Saving a valid
+The app starts with no authorized origin. Its management forms post to `/instance`, `/model` (profile temperature)
+and `/quit`. All require the local Host and its own Origin. Saving a valid
 configuration revokes active connections. The hosted page cannot administer
 the app, read a key or change the permitted instance.
 
@@ -52,7 +52,7 @@ Tool arguments and message content follow their existing Core contracts.
 
 | Fields | From → to | Meaning and disclosure |
 | --- | --- | --- |
-| `target = {source: "personal", serviceId, profileId}` | Local → tab → selected Core operation | Stable public service UUID generated once locally, plus the local profile's public ID. Compare the tuple, never a label. Only the tuple is needed for a portable selection. Reconnection verifies it. Sharing a project can disclose these public IDs. Installed target IDs retain their existing meaning. |
+| `target = {source: "personal", serviceId, profileId}` | Local → tab → selected Core operation | Stable public service UUID generated once locally, plus the local profile's public ID. Compare the tuple, never a label. Project and chat `modelId` use Core’s existing `personal:<serviceId>:<profileId>` representation of this tuple. Reconnection verifies it. Sharing a project can disclose these public IDs. Installed target IDs retain their existing meaning. |
 | `offer = {target, label, description?, provider, generation, promptCaching, limits, cost?}` | Local → tab. Only the selected offer → Core | Allowlist public configuration intentionally supplied for display or budgeting. Use the existing four provider IDs and canonical nested profile fields/types. Omitted local generation/limit settings project as empty objects. Render strings as text. Native model name, endpoint, paths, env names, credentials, local access lists and raw YAML stay local. |
 | `revision, connectionId` | Local → tab → Core | Opaque catalog snapshot and per-grant connection ID. Bind both to the operation and reject changes before dispatch. A changed catalog or grant requires a new operation. |
 | `kind, knowledgeGraphProfileId, offer, revision, connectionId` | Tab → Core | Authorize and reserve the exchange for exactly one `chat`, `probe` or `suggestions` request. Core applies its own policy and budget to all browser-supplied metadata. |

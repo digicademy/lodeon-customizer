@@ -8,7 +8,9 @@ LODEON Customizer is a standalone desktop app for connecting personal models to 
 2. The app opens its settings in your default browser. Enter the HTTPS address of your LODEON instance, including its deployment path, and choose **Save instance**. For example, enter `https://stories.example.org/lodeon/`. Browser authorization applies to the whole origin, including other paths on that origin.
 3. The settings page shows the paths to your personal model configuration and credentials. Use **Quit Customizer** on that page to stop the app. Opening it again restores the saved configuration. Closing the browser tab leaves the app running.
 
-The local settings address is `http://127.0.0.1:8765/`. The hosted **Settings → Connect personal models** action and the model editing form are planned. The current local form saves the instance address. Model definitions can already be edited in the displayed file.
+The local settings address is `http://127.0.0.1:8765/`. The local page edits the temperature of each existing model directly in its YAML profile. Clearing the field restores the configured defaults. Reload the local page after hand-editing the file. If the file changed while a form was open, saving asks you to review the new contents.
+
+In the hosted Assistant choose **Settings → Connect personal models → Connect**. Allow the browser's local-network permission if prompted. The selector and **Model information** show the authorized targets, sorted by name and labeled by source. The available personal default becomes active immediately. Use **Disconnect** in the same dialog. Each tab connects separately. After saving locally or restarting the app, disconnect and reconnect to read the current catalog. Reloading the Editor or opening a project does not initiate a connection. The project retains the public model reference. Assistant calls for personal selections are the next step.
 
 | System | Personal files |
 | --- | --- |
@@ -18,7 +20,7 @@ The local settings address is `http://127.0.0.1:8765/`. The hosted **Settings �
 
 The first launch initializes `data/config.yml` from the packaged defaults. Zero models is a valid configuration. The local `instance` field holds the address. Define `assistant.modelProfiles`, `assistant.modelBrokers` and `assistant.defaultModel` using the same keys as any LODEON Package. For an already running Ollama on this computer use its ordinary loopback address. Save local settings or restart after editing the YAML. For keyed providers, put `NAME=value` in `data/models/.env` and reference `NAME` with `apiKeyEnv`. Keys are read at invocation and sent only to the configured provider. Keep the personal data directory private.
 
-The hosted instance owns orchestration, tools, SPARQL and final synthesis. The browser relays a prepared model call and its result. Connecting a personal model gives the instance access to the public offer and call results. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
+The hosted instance owns orchestration, tools, SPARQL and final synthesis. The v1 protocol defines the exchange for prepared model calls and results. The current Settings action reads the public catalog into the tab. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
 
 ## Configure a personal routing prompt
 

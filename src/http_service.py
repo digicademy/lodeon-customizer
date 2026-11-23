@@ -159,7 +159,7 @@ class ModelHandler(BaseHTTPRequestHandler):
                 raise ValueError("denied")
             if self.command == "GET" and self.path == "/" and "Origin" not in self.headers:
                 return page(self)
-            if self.command == "POST" and self.path in ("/instance", "/quit"):
+            if self.command == "POST" and self.path in ("/instance", "/model", "/quit"):
                 return local_action(self)
             with self.server.settings_lock:
                 grants, models = self.server.grants, self.server.models
