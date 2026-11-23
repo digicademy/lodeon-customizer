@@ -1,9 +1,0 @@
-services:
-  customizer:
-    image: registry.gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer:0.1.0
-    ports:
-      - "127.0.0.1:8765:8765"
-    volumes:
-      - ./data:/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"

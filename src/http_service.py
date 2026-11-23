@@ -1,15 +1,19 @@
-"""Browser-facing model capability. The listener has no administration routes."""
+"""Loopback listener for local settings and the origin-bound model capability."""
 
 import json
+import os
+import socket
+from threading import RLock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from lodeon_model_runtime.wire import validate_payload
+from .desktop import local_action, page
 from .execution import execute_model
 from .grants import Grants
 
 
 ROUTES = {
-    "pair": "POST",
+    "connect": "POST",
     "catalog": "GET",
     "targets": "GET",
     "broker": "POST",
@@ -82,28 +86,28 @@ def _messages(messages, tools):
             raise ValueError("invalid_request")
 
 
-def landing_page(handler):
-    body = (
-        "<!doctype html><html lang=en><meta charset=utf-8>"
-        "<title>LODEON Customizer</title><h1>LODEON Customizer</h1>"
-        "<p>The local service is running.</p>"
-        "<p>Edit your models and brokers in <code>data/config.yml</code>. "
-        "Store model keys in <code>data/models/.env</code>.</p></html>"
-    ).encode()
-    handler.send_response(200)
-    handler.send_header("Content-Type", "text/html; charset=utf-8")
-    handler.send_header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
-    handler.send_header("Content-Length", str(len(body)))
-    handler.end_headers()
-    handler.wfile.write(body)
-
-
 class ModelService(ThreadingHTTPServer):
-    def __init__(self, address, models):
-        self.models = models
-        self.grants = Grants()
+    allow_reuse_address = os.name != "nt"
+    allow_reuse_port = False
+
+    def server_bind(self):
+        if os.name == "nt":
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+    def __init__(self, address, models, *, data=None, identity=None):
+        self.data = data
+        self.identity = identity
+        self.settings_lock = RLock()
+        self.set_models(models)
         super().__init__(address, ModelHandler)
         self.hosts = {f"127.0.0.1:{self.server_port}", f"localhost:{self.server_port}"}
+
+    def set_models(self, models):
+        if hasattr(self, "grants"):
+            self.grants.close()
+        self.models = models
+        self.grants = Grants(models.origin, set(models.profile_ids) | set(models.brokers))
 
 
 class ModelHandler(BaseHTTPRequestHandler):
@@ -153,11 +157,15 @@ class ModelHandler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("denied")
             if self.command == "GET" and self.path == "/" and "Origin" not in self.headers:
-                return landing_page(self)
+                return page(self)
+            if self.command == "POST" and self.path in ("/instance", "/quit"):
+                return local_action(self)
+            with self.server.settings_lock:
+                grants, models = self.server.grants, self.server.models
             origin_header = self.headers.get("Origin")
             if len(
                 self.headers.get_all("Origin", [])
-            ) != 1 or not self.server.grants.permits_origin(origin_header):
+            ) != 1 or not grants.permits_origin(origin_header):
                 raise ValueError("denied")
             origin = origin_header
             route = self.path.removeprefix("/v1/")
@@ -188,19 +196,15 @@ class ModelHandler(BaseHTTPRequestHandler):
                 )
             if self.command != ROUTES[route]:
                 raise ValueError("invalid_request")
+            if route == "connect":
+                self._body(route)
+                return self._reply(200, grants.connect(origin), origin=origin)
             auth = self.headers.get("Authorization", "")
-            if len(self.headers.get_all("Authorization", [])) != 1 or not auth.startswith(
-                "Bearer "
-            ):
+            if len(self.headers.get_all("Authorization", [])) != 1 or not auth.startswith("Bearer "):
                 raise ValueError("denied")
             token = auth[7:]
-            grants = self.server.grants
-            if route == "pair":
-                self._body(route)
-                return self._reply(200, grants.pair(origin, token), origin=origin)
             grant = grants.get(origin, token)
             body = self._body(route)
-            models = self.server.models
             if route == "catalog":
                 result = models.catalog(grant.profiles.intersection(models.profile_ids))
             elif route == "targets":
@@ -214,13 +218,13 @@ class ModelHandler(BaseHTTPRequestHandler):
                 grants.revoke(grant.connection)
                 return self._reply(204, origin=origin)
             else:
-                result = self._call(route, body, origin, token, grant)
+                result = self._call(route, body, origin, token, grant, grants, models)
             return self._reply(204 if result is None else 200, result, origin=origin)
         except (ValueError, TypeError, RecursionError) as error:
             code = str(error) if str(error) in STATUS else "invalid_request"
             self._reply(STATUS[code], {"error": {"code": code}}, origin=origin)
 
-    def _call(self, route, body, origin, token, grant):
+    def _call(self, route, body, origin, token, grant, grants, models):
         fields = (
             set()
             if route == "cancel"
@@ -229,11 +233,9 @@ class ModelHandler(BaseHTTPRequestHandler):
         _closed(body, IDS | fields)
         if not all(_text(body[k]) and len(body[k]) <= 256 for k in IDS):
             raise ValueError("invalid_request")
-        grants = self.server.grants
         if route == "cancel":
             grants.claim(origin, token, body)
             return None
-        models = self.server.models
         validate_payload("target", body["target"])
         profile = body["target"]["profileId"]
         if (

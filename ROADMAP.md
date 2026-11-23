@@ -1,12 +1,11 @@
 # LODEON Customizer Roadmap
 
-Implementation requested on 2026-11-22. The Step 1 browser check is complete
-for individual model offers. Step 2 is complete. The public Compose file matches the tested checkout,
-and the published image passed anonymous pulls on both platforms and a fresh
-Compose start. The [broker/default contract](PROTOCOL.md#selected-broker-policy-and-personal-default)
-is approved. Step 3 implementation is in progress. This is
-the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
-coordinated review steps, including component delivery and Core integration.
+This repository owns the seven review steps for the Customizer and its Core
+integration. The approved delivery architecture is an instance-independent
+native desktop app for Windows, macOS and Linux. Desktop packaging supersedes
+the container prototype outright. There is no compatibility or migration path.
+The local foundation and Core exchange exist. Desktop release acceptance,
+personal routed prompts and the hosted Settings client remain open.
 
 LODEON Customizer is the fixed product/component name. Its first release
 provides personal model connections; its longer-term role is a user-controlled
@@ -17,7 +16,7 @@ the next step. Planning is not implementation evidence.
 
 ## Release Scope
 
-A user starts an optional local Docker model service, configures personal
+A user opens the desktop app, enters their LODEON instance URL, configures personal
 models through the existing model-profile YAML structure and supplies secrets
 locally. In a compatible LODEON instance, **Settings → Connect personal
 models** explicitly connects that service. Its approved model offers appear
@@ -68,28 +67,25 @@ The Customizer reuses one pinned Core-owned model execution artifact for
 profile validation, provider adapters and completion normalization. Step 1
 fixes the delivery boundary; Step 2 provides it without copying provider code.
 Core does not depend on this optional repository. A complete local LODEON
-instance is not required. Docker/model setup and operational evidence belong
+instance is not required. Desktop delivery, model setup and operational evidence belong
 here, not in a second model-only repository.
 
 ## Binding Contracts
 
 ### Local Setup And Configuration Editing
 
-- Distribute a single `docker-compose.yml` that starts the prebuilt image from
-  the GitLab Container Registry with `docker compose up -d`. Each release
-  tag contains both `linux/amd64` and `linux/arm64`. Build its wheel
-  from the current Core revision for that release. The user needs neither
-  repository to start the service.
-- Ship a regular LODEON Package with `lodeon.package.yml` and a root
-  `config.yml`. On first start, create `data/` beside the Compose file and
-  initialize `data/config.yml` from the packaged configuration only if absent.
-  The service can start with zero models and zero keys. Restarts and image
-  updates preserve an existing file.
-- Compose mounts `data/`. The model capability reads `data/models/.env`
-  directly when keys are needed. Model definitions refer to keys with the
-  existing `apiKeyEnv` field. A key can be changed for subsequent calls
-  without recreating the container. The entire personal `data/` directory
-  stays out of version control and image builds.
+- Ship a self-contained native application. The user extracts the matching
+  archive and opens the app. It starts a loopback listener, opens the local
+  settings page and remembers the entered HTTPS instance URL.
+- Retain a regular Package manifest and root `config.yml`. On first launch
+  create the per-user `data/config.yml` and stable service identity in the
+  OS user-data directory. Zero models is valid. Restarts and replacement of
+  the app preserve personal files.
+- Resolve `apiKeyEnv` from `data/models/.env` at invocation. The packaged
+  defaults contain only public configuration. Build, sign and test each
+  native archive from the same coordinated Core revision. The release matrix,
+  user-data locations and browser review are specified in the [README](README.md).
+
 - The text editor and the small local Customizer UI share one editable file,
   `data/config.yml`, and the Core Package resolver and schema. Saving a model,
   broker or default in the UI updates that file directly. A save must retain
@@ -98,7 +94,7 @@ here, not in a second model-only repository.
   a key under the same name updates only the model credentials file. The UI
   can show whether a key is configured without returning its stored value.
 - The local UI owns configuration edits. Hosted **Settings → Connect personal
-  models** owns pairing and selection. A model invocation grant conveys no
+  models** owns connection and selection. A model invocation grant conveys no
   administrative rights. Keep the shared connection service separate from the
   models capability so future capabilities can own their credentials and grants.
 
@@ -125,17 +121,17 @@ here, not in a second model-only repository.
 - On connection, sort personal and instance targets alphabetically by display
   label. Select an available Customizer `assistant.defaultModel` immediately
   for the connected user. Project references do not contain the local service
-  address, pairing grant, provider endpoint or credentials.
+  address, connection grant, provider endpoint or credentials.
 
 ### Two Independent Trust Boundaries
 
-- Pairing with the local service requires explicit local approval of an exact
-  LODEON origin. A one-time, locally issued pairing credential may be used.
-  No wildcard-origin access, port scanning or
-  automatic connection on project import is introduced.
+- The local user enters the instance URL. Only that origin may request an
+  expiring model grant. A saved change invalidates prior connections. No
+  operator-maintained user list, manual ticket or discovery step is required.
+
 - Provider keys stay in the user-controlled service and go only to the locally
   configured provider. Neither the hosted frontend nor its backend receives
-  them. Local pairing grants remain between browser and local service.
+  them. Local connection grants remain between browser and local service.
 - Backend invocation exchange is separately bound to the initiating browser
   operation and its existing authentication context. Correlation ids are not
   authorization. Isolation is required even when instance login is disabled;
@@ -146,7 +142,7 @@ here, not in a second model-only repository.
   permitted request fields. A browser invocation cannot override the configured
   endpoint, read secrets, administer profiles or issue arbitrary HTTP requests.
 - The threat guarantee concerns the remote instance operator, not an attacker
-  controlling the user's OS or local service image. A permitted origin may
+  controlling the user's OS or desktop app. A permitted origin may
   attempt to abuse invocation authority; local revocation and call/token bounds
   remain necessary. Key confidentiality is not conversation confidentiality.
 
@@ -195,15 +191,10 @@ Do not disable browser security or use an instance proxy as a workaround.
 connection. Demonstrate that an unapproved origin cannot pair or invoke. The
 prototype is intermediate evidence, not the completed feature.
 
-**Result, 2026-11-23.** The [v1 protocol](PROTOCOL.md) freezes the public
-fields, the two independent credentials used after pairing, the HTTP exchange
-and the pinned Core wheel. The [browser check](checks/browser-connection.cjs)
-loads two real public HTTPS origins with ordinary certificate validation. In
-a fresh test context it pairs from `https://example.com`, reads one synthetic
-model offer, then attempts to reuse the ticket. The browser sends only
-preflights from the second origin, `https://example.org`, for both pairing
-and invocation. No provider is configured. The fixture listens on an ephemeral
-IPv4 loopback port and closes when the check finishes.
+**Prototype results, 2026-11-23.** Initial measurements used a disposable HTTP
+counterpart. They establish browser behavior at that time. The current
+[desktop browser check](checks/browser-connection.cjs) exercises the real
+extracted app's local form and hosted connect, catalog and disconnect routes.
 
 | Browser tested | Local transport | Observed result |
 | --- | --- | --- |
@@ -213,37 +204,15 @@ IPv4 loopback port and closes when the check finishes.
 | Playwright WebKit 26.0, Linux | HTTP | Fetch failed with “Not allowed to request resource”. The listener saw no request. |
 | Same WebKit build | HTTPS | Pairing and catalog returned 200 using a certificate for `127.0.0.1` signed by a CA trusted only inside the disposable container. |
 
-Each successful run observed 403 on ticket reuse and both foreign preflights.
-Direct requests with a valid grant and a foreign, null or absent Origin were
-rejected. HTTP runs also checked rejection of an unexpected Host. Chromium
-permission changes used the browser's per-origin permission API in a disposable
-context. The visual permission dialog was not exercised. No grant, certificate
-or setting was installed in the user's normal browser profile.
-
-Core uses real Chromium for smoke checks and documents the CSS floor as Chrome
-111+, Firefox 128+ and Safari 16.4+. The measurements above are specific to
-these builds. Linux WebKit is not a Safari or iOS acceptance run, and the
-oldest supported releases were not tested. Keep trusted loopback HTTPS as an
-explicit option and explain browser refusal in Settings. Where the browser
-blocks the network request, JavaScript may only see a generic fetch failure.
-Chrome documents the separate [local network access permission](https://developer.chrome.com/blog/local-network-access).
-
-To reproduce the Firefox check from the Customizer checkout using Core's
-existing Playwright 1.56.1 test image:
-
-```sh
-docker run --rm --user pwuser -e NODE_PATH=/playwright/node_modules \
-  -v "$PWD/checks:/checks:ro" lodeon-playwright-audio:1.56.1 \
-  node /checks/browser-connection.cjs firefox
-```
-
-Use `webkit` in the same image for the HTTP comparison. For the TLS check,
-supply `CHECK_CERT` and `CHECK_KEY` for a loopback certificate whose IP SAN
-is `127.0.0.1`. Trust its issuing CA in the disposable browser environment
-and set `NODE_EXTRA_CA_CERTS` there for the direct Node checks. For a native
-Chromium with the current loopback permission API, run
-`node checks/browser-connection.cjs chromium` with Node 22+, Playwright Core
-on the module path and `CHROMIUM_PATH` pointing to the executable.
+The earlier prototype checked foreign, opaque and absent origins and an
+unexpected Host. Browser permission and local origin approval are independent.
+Linux WebKit does not establish Safari compatibility. The desktop app uses
+plain loopback HTTP. A successful TLS experiment in the prototype does not
+establish support in the shipped app. Release requires a normal hosted
+connection in the actual browsers listed in the README.
+For the focused check, run `node checks/browser-connection.cjs <chromium|firefox|webkit> <absolute-app-executable>`
+with Playwright Core and the relevant browser installed. For Chromium set
+`CHROMIUM_PATH` to the desktop browser executable.
 
 ### Step 2 — Provide The Shared Runtime And Customizer Foundation
 
@@ -258,68 +227,36 @@ they reach a browser/remote exchange. Resolve how local and operator execution
 bounds combine, display restrictions and reject incompatible settings without
 silent parameter rewriting. Do not change installed-model semantics.
 
-Deliver the Package, registry image, Compose startup and local files described
-above. Replace the prototype examples and restricted loader with the canonical
-Package configuration and resolver. Check first start from the Compose file
-alone and restart with a pre-existing personal configuration. Review the
-local UI save flow against those same files.
+Deliver the native archives, public Package defaults and per-user files
+described above. Each native runner must start the extracted application,
+check its local settings, preserve configuration, identity and keys across a
+restart, and complete a real model HTTP exchange with the fixture. Tagged
+Windows and macOS builds require native signing; macOS also requires
+notarization. The five required targets are listed in the README. A tag
+additionally requires normal desktop/browser review on each supported OS.
 
-**Review:** focused existing provider/gateway tests pass; a neutral consumer can
-load the artifact, validate an Ollama and keyed-provider profile, and produce a
-normalized completion without copying provider code. Inspect a sentinel-secret
-projection. Customizer implementation and operational progress are recorded
-here.
+**Earlier evidence.** The shared Core runtime, strict catalog/result schemas,
+ordinary Ollama execution and credential filtering were exercised in Step 2.
+The former container distribution is retired. Its checks do not count towards
+desktop acceptance. Desktop and browser verification are recorded separately.
 
-**Local delivery check, 2026-11-23.** The Core build target supplied the wheel
-for the versioned Customizer image. Starting from the single Compose file
-created the personal configuration and service identity. Recreating the
-container preserved both files byte for byte and served the local landing
-page. The unchanged models-production configuration produced eleven offers.
-All 28 Core schema tests and four Customizer checks passed, including key
-rotation from disk. The local configuration editor and hosted pairing are pending.
+**Desktop verification, 2026-11-23 (development archives, 0.2.0).**
 
-The release build installs the Python modules directly from `src/`.
-The locally built `0.1.0` image index contains `linux/amd64` and `linux/arm64`.
-The installed catalog command and all four offline Customizer checks passed
-on each image. Docker Desktop ran the AMD64 variant on an ARM64 host.
+| Archive or client | Observed result |
+| --- | --- |
+| macOS 27.2.1, Apple Silicon | Extracted app started, a second launch reused the service, local instance save and restart preserved personal files, and a real HTTP call to the keyed local provider fixture returned the expected completion. |
+| Linux arm64, glibc 2.41, isolated Linux VM on Apple Silicon | The extracted Linux executable passed the same checks. |
+| Brave, Chromium 158.0.8127.42, macOS arm64 | The browser saved the instance via the actual local form. A test HTTPS page on the approved origin connected, read the catalog and disconnected; a foreign origin was denied. |
+| Firefox 142.0.1, Linux arm64 | The same browser check passed against the extracted Linux executable. |
+| Playwright WebKit, Linux arm64 | The HTTPS page's loopback fetch failed with `TypeError: Load failed`. |
+| Safari 27.2, macOS | WebDriver declined to open a test session because remote automation was disabled. Its connection to the app remains unverified. |
+| Windows x64, macOS Intel, Linux x64 | Native CI jobs defined; those platforms have not been exercised in this checkout. |
 
-**Published release check, 2026-11-23.** GitLab served tag `0.1.0` anonymously
-with image index `sha256:16929fcd16db37b14d98fdc72865dc54049e873e081de23e6d5d16dcec548b1f`.
-A client without credentials downloaded both platform manifests and all 25
-distinct config and layer blobs (291,951,750 bytes) and verified their SHA-256
-digests and sizes. Docker ran the published AMD64 catalog on the ARM64 host.
-On ARM64, Compose pulled the tag with an isolated credential-free Docker
-configuration and started from a fresh directory containing only the checkout's
-`docker-compose.yml`. The loopback page returned HTTP 200, the catalog was
-empty, and the service created the packaged configuration, a valid service ID
-and the model directory without any credentials.
-
-After the source push, an anonymous HTTPS download of the raw `main` Compose
-file matched the checkout byte for byte. This closes the Step 2 delivery check.
-
-**Earlier prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
-loads its adapters from site-packages. The independent Customizer image
-consumes the same wheel through the SHA-256 in `runtime.lock`. Its local
-CLI reads `assistant.modelProfiles`, resolves local environment references
-and returns the v1 allowlisted catalog. Schema and runtime checks reject
-incompatible generation settings and call bounds before provider execution.
-Turn-level policy and grant-wide reservations belong to Step 3.
-
-The 70 focused Core gateway, provider, profile and application-composition
-tests pass. Four offline Customizer tests cover catalog filtering, configuration
-rejection, keyed request preparation, normalized native Tool calls, safe errors
-and limits. A native Anthropic HTTP fixture received one request with the
-synthetic key and echoed it in a 401 response. The executor returned only
-`assistant.model.credentials_rejected`. Captured diagnostics and the public
-catalog contained no test key. In a separate live check the standalone image sent
-one bounded request to the already installed Ollama model `gemma4:12b`. Its
-normalized answer was `Ready`, finish reason `stop`, with 23 input and 38 output
-tokens. This exercises local execution. Browser delegation and the full
-SPARQL/Answer workflow have separate acceptance steps.
-
-The broader Core API run passed 660 of 661 tests. The pre-existing
-`test_assistant_status_exposes_only_safe_ui_flags` still expects three initial
-image previews. Core's committed configuration specifies twelve.
+The five package checks passed on both build hosts; 29 Core configuration
+schema tests passed. The browser checks used a controlled hosted test page.
+Release signing, the full GitLab matrix and browser acceptance through the
+production Settings client are pending. The Linux VM was a test environment;
+users start the desktop executable directly.
 
 ### Step 3 — Implement The Backend Delegation Transport
 
@@ -337,7 +274,7 @@ keys. Add coded localized errors and enforce operator/KG policy independently
 of anything reported by the browser.
 
 Implement the corresponding restricted Customizer execution boundary with
-locally approved exact origins, scoped pairing grants, revocation and local
+locally approved exact origins, scoped connection grants, revocation and local
 call/token bounds. Validate Host/Origin and reject endpoint injection,
 secret/configuration reads and administrative operations from the hosted app.
 Filter credential-bearing provider diagnostics before any response or log.
@@ -350,16 +287,14 @@ native Tool call. The Assistant reported the probe as available. This browser ch
 used a neutral counterpart and performed no provider inference. Core rejects a foreign origin, a missing
 graph, the wrong token, a different session of the same user, mismatched calls and
 duplicate results. Revoking graph access, logging out and expiry invalidate pending
-authority. The local HTTP test covers a one-use ticket, Host/Origin checks, catalog
-and selected-broker disclosure, a provider fixture, replay, early cancellation, the
-grant budget and disconnect. These checks use an in-process grant issuer. Image
-`0.1.0` remains the previously published foundation.
+authority. The local HTTP test covers connection from the configured origin, Host/Origin
+checks, catalog and selected-broker disclosure, a provider fixture, replay,
+early cancellation, budgets and disconnect.
 
-Two implementation decisions remain open: how the locally operated CLI issues and
-revokes grants in the running service, and how the instance operator permits specific
-routing prompt IDs. Until a mechanism is selected, personal routed policies are
-rejected at reservation. A fixed policy needs no prompt release. The hosted Settings
-UI and complete query/evidence/answer test remain in Steps 4 and 5.
+**Decisions.** Local approval is the instance URL entered in the desktop app.
+A personal routed broker supplies its own routing prompt. Prompt delivery at
+selection still needs implementation; until then Core rejects personal
+routed policies at reservation. A fixed policy needs no prompt delivery.
 
 **Review:** a neutral browser counterpart completes a request. A second user,
 anonymous tab or wrong operation cannot read its model input or submit its
@@ -368,10 +303,10 @@ installed-model requests and protected graph access retain their behavior.
 
 ### Step 4 — Add Connect Personal Models And Catalog Composition
 
-Use the existing hosted Settings/menu/modal patterns for service address,
-pairing, connection status and disconnect. Local editing belongs to the
+Use the existing hosted Settings/menu/modal patterns for connecting to the desktop app,
+connection status and disconnect. Local editing belongs to the
 Customizer. Store active grants in tab memory, separate from project data.
-Reconnection requires local approval. A compatible service/protocol is checked
+Reconnection uses the currently saved instance origin. A compatible service/protocol is checked
 before its public catalog is accepted. Connecting/catalog discovery performs
 no model inference.
 
@@ -384,12 +319,8 @@ separate tabs/origins have independently scoped connections. The action must
 work when the instance has no installed models and remain unavailable when the
 operator disables this capability.
 
-Document startup and pairing for the Compose service delivered in Step 2.
-Publish ports on loopback only; require no Docker socket, privileged container
-or operator tunnel. Document host Ollama reachability and supported browser
-permissions. Keep local secret inputs out of version control and generic logs.
-Make configuration reload and connection revocation behavior explicit; a new
-vault or persistent administrative database is not part of this first release.
+Document native startup, local Ollama, browser permissions, reloading and
+revocation. Use the saved instance and fixed loopback address.
 
 To review the proposed local UI, change a model's temperature, save, and
 inspect its existing profile in `data/config.yml`. Then edit that value by
@@ -451,7 +382,7 @@ checks once, with required rebuilds for changed dependencies or images.
 Customizer checks remain repository-owned. Do not repeat full acceptance at
 every step or introduce a new test platform.
 
-Use a real browser connection, actual local Docker service and Ollama for the
+Use a real browser connection, the extracted desktop app and Ollama for the
 complete backend–browser–local-model–SPARQL–final-answer workflow, including an
 instance with zero installed models. Verify a controlled keyed-provider path,
 connection lifecycle and project ZIP roundtrip. Check that Core starts and

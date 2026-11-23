@@ -52,14 +52,16 @@ class TransportTest(unittest.TestCase):
             None,
             {},
         )
+        origin = "https://lodeon.example"
+        models.origin = origin
         server = ModelService(("127.0.0.1", 0), models)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
-        origin = "https://lodeon.example"
-        ticket = server.grants.issue(origin, {"local", "mixed"}, calls=2, tokens=64, lifetime=60)
+        from lodeon_customizer.grants import Grants
+        server.grants = Grants(origin, {"local", "mixed"}, calls=2, tokens=64, lifetime=60)
 
-        def request(route, token, payload=None, **overrides):
+        def request(route, token=None, payload=None, **overrides):
             conn = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
             try:
                 method = "GET" if route in ("catalog", "targets") else "POST"
@@ -70,7 +72,7 @@ class TransportTest(unittest.TestCase):
                     {
                         "Origin": origin,
                         "Content-Type": "application/json",
-                        "Authorization": "Bearer " + token,
+                        **({"Authorization": "Bearer " + token} if token else {}),
                         **overrides,
                     },
                 )
@@ -80,10 +82,9 @@ class TransportTest(unittest.TestCase):
             finally:
                 conn.close()
 
-        self.assertEqual(request("pair", ticket, Origin="https://foreign.example")[0], 403)
-        status, pair = request("pair", ticket)
+        self.assertEqual(request("connect", Origin="https://foreign.example")[0], 403)
+        status, pair = request("connect")
         self.assertEqual(status, 200, pair)
-        self.assertEqual(request("pair", ticket)[0], 403)
         token = pair["grant"]
         self.assertEqual(request("targets", token, Host="foreign.example")[0], 403)
         status, catalog = request("targets", token)

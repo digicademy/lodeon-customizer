@@ -1,6 +1,0 @@
-**
-!pyproject.toml
-!config.yml
-!lodeon.package.yml
-!src/
-!src/*.py

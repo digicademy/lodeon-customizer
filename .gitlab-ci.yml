@@ -1,0 +1,77 @@
+stages: [source, desktop, review, acceptance]
+
+variables:
+  # Until Core merges delegation, use the coordinated Core branch. May be a commit or tag.
+  LODEON_CORE_REF: feature-customizer
+
+core-source:
+  stage: source
+  tags: [linux-x86_64]
+  script:
+    - |
+      set -eu
+      mkdir -p build/core
+      api="$CI_API_V4_URL/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-core/repository"
+      auth="JOB-TOKEN: $CI_JOB_TOKEN"
+      if [ -n "${LODEON_CORE_READ_TOKEN:-}" ]; then auth="PRIVATE-TOKEN: $LODEON_CORE_READ_TOKEN"; fi
+      ref=$(python -c 'import os,urllib.parse; print(urllib.parse.quote(os.environ["LODEON_CORE_REF"], safe=""))')
+      curl --fail --silent --show-error --header "$auth" "$api/commits/$ref" -o build/revision.json
+      sha=$(python -c 'import json,re; s=json.load(open("build/revision.json"))["id"]; assert re.fullmatch("[0-9a-f]{40,64}",s); print(s)')
+      curl --fail --silent --show-error --header "$auth" "$api/archive.tar.gz?sha=$sha" -o build/core.tar.gz
+      mkdir -p build/checkout build/core/api build/core/config
+      tar -xzf build/core.tar.gz --directory build/checkout --strip-components=1
+      cp build/checkout/LICENSE build/core/
+      cp -R build/checkout/api/pyproject.toml build/checkout/api/lodeon_model_runtime build/core/api/
+      cp -R build/checkout/config/config.yml build/checkout/config/resolver build/core/config/
+      echo "$sha" > build/core/REVISION
+  artifacts:
+    paths: [build/core/]
+    expire_in: 30 days
+
+native-app:
+  stage: desktop
+  parallel:
+    matrix:
+      - DESKTOP_TARGET: [windows-x86_64, macos-arm64, macos-x86_64, linux-arm64, linux-x86_64]
+  tags: [$DESKTOP_TARGET]
+  script:
+    - python release/build.py --core build/core --work build/desktop
+  artifacts:
+    name: candidate-$DESKTOP_TARGET
+    paths: [dist/]
+    expire_in: 30 days
+
+# A tagged release requires a normal desktop launch and hosted browser check on each OS.
+desktop-review:
+  stage: review
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+      allow_failure: false
+  needs:
+    - job: native-app
+      artifacts: false
+  tags: [linux-x86_64]
+  script:
+    - echo "Maintainer confirmed the signed candidates and browser checks in the README."
+
+accepted-archives:
+  stage: acceptance
+  tags: [linux-x86_64]
+  needs:
+    - core-source
+    - native-app
+    - job: desktop-review
+      artifacts: false
+      optional: true
+  script:
+    - |
+      set -eu
+      for target in windows-x86_64.zip macos-arm64.zip macos-x86_64.zip linux-arm64.tar.gz linux-x86_64.tar.gz; do
+        test -f dist/LODEON-Customizer-*-"$target"
+      done
+      cp build/core/REVISION dist/CORE-REVISION
+      cd dist
+      sha256sum LODEON-Customizer-* > SHA256SUMS
+  artifacts:
+    paths: [dist/SHA256SUMS, dist/CORE-REVISION]

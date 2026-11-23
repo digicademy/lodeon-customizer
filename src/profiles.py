@@ -12,7 +12,7 @@ from lodeon_model_runtime.wire import validate_payload
 from resolver.configuration_schema import validate_delegated_broker
 from resolver.errors import ConfigResolverError
 
-from .configuration import ConfigError, load_assistant, read_model_environment
+from .configuration import ConfigError, instance_origin, load_configuration, read_model_environment
 
 
 def _resolve(configured, environment):
@@ -42,7 +42,9 @@ def _resolve(configured, environment):
 class LocalModels:
     """Own a private snapshot for the lifetime of one configuration revision."""
 
-    def __init__(self, service_id, assistant, env_path, environment):
+    def __init__(self, service_id, assistant, env_path, environment, instance=""):
+        self.instance = instance
+        self.origin = instance_origin(instance) if instance else None
         self._service_id = str(service_id)
         self.revision = uuid4().hex
         self._profiles = assistant["modelProfiles"] if assistant["enabled"] else {}
@@ -55,10 +57,11 @@ class LocalModels:
     @classmethod
     def load(cls, path: Path, service_id: UUID, environment: Mapping[str, str] | None = None):
         try:
-            assistant = load_assistant(path)
+            config = load_configuration(path)
+            assistant = config["assistant"]
             for profile_id, profile in assistant["modelProfiles"].items():
                 validate_model_profile_contract(profile_id, profile)
-            return cls(service_id, assistant, path.parent / "models" / ".env", environment)
+            return cls(service_id, assistant, path.parent / "models" / ".env", environment, config.get("instance", ""))
         except (OSError, ValueError, ConfigResolverError, RecursionError):
             raise ConfigError("invalid_config") from None
 

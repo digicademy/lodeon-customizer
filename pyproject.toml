@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lodeon-customizer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local configuration and execution of personal LODEON models"
 requires-python = ">=3.12"
-dependencies = ["lodeon-model-runtime==0.1.0", "PyYAML==6.0.3", "python-dotenv==1.2.4"]
+dependencies = ["lodeon-model-runtime==0.1.0", "PyYAML==6.0.3", "python-dotenv==1.2.4", "ruamel.yaml==0.19.1"]
 
 [project.scripts]
 lodeon-customizer = "lodeon_customizer.cli:main"

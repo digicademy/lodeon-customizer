@@ -1,51 +1,120 @@
-"""Initialize the user's files and resolve the personal Package with LODEON Core."""
+"""Initialize desktop data and resolve personal models against the bundled Core package."""
 
+import hashlib
 import os
+import sys
+from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from dotenv.parser import parse_stream
 from resolver.assembler import resolve_personal_model_configuration
-
-
-CORE = Path("/opt/lodeon")
-PACKAGE = Path("/opt/customizer")
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 
 class ConfigError(ValueError):
     """Expose only a stable diagnostic from the personal configuration."""
 
 
-def _create_if_absent(path: Path, content: bytes) -> None:
+def data_directory():
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    elif os.name == "nt":
+        base = Path(os.environ["LOCALAPPDATA"])
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "LODEON Customizer" / "data"
+
+
+def resource_paths():
+    if getattr(sys, "frozen", False):
+        assets = Path(__file__).resolve().parent.parent / "resources"
+        return assets / "core" / "config.yml", assets / "package"
+    package = Path(os.environ["LODEON_CUSTOMIZER_ROOT"])
+    return Path(os.environ["LODEON_CORE_ROOT"]) / "config" / "config.yml", package
+
+
+def _create_if_absent(path, content):
     if path.exists():
         return
-    with NamedTemporaryFile(dir=path.parent) as pending:
+    with NamedTemporaryFile(dir=path.parent, delete=False) as pending:
         pending.write(content)
-        pending.flush()
-        try:
-            os.link(pending.name, path)
-        except FileExistsError:
-            pass
+    try:
+        # Publish complete bytes exclusively. Close the temporary file first on Windows.
+        os.link(pending.name, path)
+    except FileExistsError:
+        pass
+    finally:
+        Path(pending.name).unlink()
 
 
 def initialize(data: Path) -> UUID:
     data.mkdir(mode=0o700, parents=True, exist_ok=True)
     (data / "models").mkdir(mode=0o700, exist_ok=True)
-    _create_if_absent(data / "config.yml", (PACKAGE / "config.yml").read_bytes())
+    _, package = resource_paths()
+    _create_if_absent(data / "config.yml", (package / "config.yml").read_bytes())
     identity = data / ".service-id"
     _create_if_absent(identity, (str(uuid4()) + "\n").encode())
     try:
-        return UUID(identity.read_text().strip())
+        return UUID(identity.read_text(encoding="utf-8").strip())
     except ValueError:
         raise ConfigError("invalid_service_identity") from None
 
 
-def load_assistant(config: Path) -> dict:
-    product = resolve_personal_model_configuration(
-        core_config=CORE / "config/config.yml", package_root=PACKAGE, personal_config=config,
+def load_configuration(config: Path) -> dict:
+    core_config, package = resource_paths()
+    return resolve_personal_model_configuration(
+        core_config=core_config, package_root=package, personal_config=config,
     )
-    return product["assistant"]
+
+
+def instance_origin(address):
+    """Derive the browser origin from an explicitly entered HTTPS instance URL."""
+    if not isinstance(address, str) or len(address) > 2048 or any(
+        c.isspace() or ord(c) < 32 or c in "\\*" for c in address
+    ):
+        raise ConfigError("invalid_instance")
+    parsed = urlsplit(address)
+    if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
+            or parsed.password is not None or parsed.query or parsed.fragment or "%" in parsed.netloc):
+        raise ConfigError("invalid_instance")
+    host = parsed.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host:
+        host = f"[{host}]"
+    return f"https://{host}" + (f":{parsed.port}" if parsed.port not in (None, 443) else "")
+
+
+def save_instance(path, address, revision, check):
+    """Preserve edited YAML and publish a validated replacement on the same filesystem."""
+    instance_origin(address)
+    original = path.read_bytes()
+    if hashlib.sha256(original).hexdigest() != revision:
+        raise ConfigError("config_changed")
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    try:
+        settings = yaml.load(original.decode("utf-8"))
+    except YAMLError:
+        raise ConfigError("invalid_config") from None
+    if not isinstance(settings, dict):
+        raise ConfigError("invalid_config")
+    settings["instance"] = address
+    output = StringIO()
+    yaml.dump(settings, output)
+    with NamedTemporaryFile(dir=path.parent, delete=False) as pending:
+        pending.write(output.getvalue().encode("utf-8"))
+    candidate = Path(pending.name)
+    try:
+        models = check(candidate)
+        if path.read_bytes() != original:
+            raise ConfigError("config_changed")
+        os.replace(candidate, path)
+        return models
+    finally:
+        candidate.unlink(missing_ok=True)
 
 
 def read_model_environment(path: Path) -> dict[str, str]:

@@ -1,57 +1,49 @@
 # LODEON Customizer personal model protocol v1
 
-This is the implementation contract for the first capability. The executable
-Step 1 counterpart exercises pairing, catalog access and browser security.
-The installed runtime now validates catalog and result payloads against
-`lodeon_model_runtime/personal-models-v1.schema.json` in the wheel. The working tree
-includes the Core exchange and local model HTTP handlers. The published 0.1.0
-image provides the local foundation. Hosted Settings belongs to Step 4.
+This contract covers personal model invocation and broker discovery. The desktop
+app bundles the Core runtime and its public payload schemas. Local model routes
+and the Core exchange are implemented. The hosted Settings client is pending.
 
 The v1 envelopes below describe individual model offers. The
 [approved broker contract](#selected-broker-policy-and-personal-default) describes the additional
 disclosure needed for mixed brokers and a connected-user default. Local
 administration uses the Customizer's own UI and files.
-The pairing grant described here cannot authorize configuration or key edits.
+A model connection grant cannot authorize configuration or key edits.
 
 ## Local connection
 
-The user explicitly selects a loopback service address. The reference address
-uses the IPv4 literal `127.0.0.1` and an explicit port. Both HTTP loopback
-and locally configured HTTPS with a browser-trusted, name-matching certificate
-are supported transports. Docker publishes on host loopback. The Editor allows
-only loopback destinations, rejects URL credentials, query, fragment and
-redirects, and sends requests with `credentials: "omit"` and no referrer.
-The hosted page needs a secure context and a deployment policy that permits
-the connection, including CSP `connect-src` if set.
+The desktop app listens on `http://127.0.0.1:8765`. The user saves one HTTPS
+LODEON instance URL on the app's local settings page. A deployment path is
+retained for display. Browser permission is granted to its serialized origin
+(scheme, hostname and port), which is the boundary a browser can enforce.
+The app starts with no authorized origin. Its local form posts to `/instance`
+or `/quit`; both require the local Host and its own Origin. Saving a valid
+configuration revokes active connections. The hosted page cannot administer
+the app, read a key or change the permitted instance.
 
-Locally, the user approves an exact serialized HTTPS origin (scheme, host and
-port), a set of profile IDs, finite execution bounds and the personal-model
-capability. The local command issues a short-lived single-use pairing ticket.
-The service validates the expected Host including port and the approved Origin
-on every request, including OPTIONS and requests with valid credentials.
-Missing, opaque (`null`) or unapproved origins fail before any operation.
-Preflight permits only the route's method and required headers. Responses use
-`Cache-Control: no-store` and `Vary: Origin`. Only an approved origin gets
-its exact `Access-Control-Allow-Origin`. Local browser permission and service
-approval are independent.
+The hosted client contacts the loopback service with credentials omitted,
+redirects rejected and no referrer. It must run in a secure context whose
+browser and deployment policy permit the local request. Every model route,
+including preflight, checks Host and the exact configured Origin. A missing,
+opaque or foreign Origin is denied. Responses use `Cache-Control: no-store`
+and `Vary: Origin`. Only the configured origin receives a matching
+`Access-Control-Allow-Origin`. Browser permission is independent of the saved
+instance. The existing browser evidence and its limits are in the roadmap.
 
-All paths below are relative to that service. The version is in the path.
-Unknown versions, fields or enum values fail closed. JSON bodies use
-`application/json`. Empty operations have no body.
-
-| Method and path | Browser sends | Local service returns |
+| Method and path | Request | Result |
 | --- | --- | --- |
-| POST `/v1/pair` | `Authorization: Bearer <ticket>` | `200 {connectionId, grant, expiresInSeconds}`. Atomic ticket consumption creates one expiring grant for that origin and approved scope. |
-| GET `/v1/catalog` | `Authorization: Bearer <grant>` | `200 {revision, models: [offer, …]}`. An empty list is valid. |
-| POST `/v1/invoke` | Grant header and the invocation below | `200` and one terminal result envelope. Execution can block until its deadline. |
-| POST `/v1/cancel` | Grant header and `{operationId, callId, connectionId}` | `204` after cancelling or recording cancellation in this grant. Provider interruption is best effort. |
-| POST `/v1/disconnect` | Grant header | `204` after revocation and cancellation of pending calls. The local user can revoke independently. |
+| POST `/v1/connect` | Empty request from the saved instance's origin | `200 {connectionId, grant, expiresInSeconds}` |
+| GET `/v1/catalog` | Local bearer grant | `200 {revision, models}` |
+| GET `/v1/targets` | Local bearer grant | Models, broker summaries and optional default |
+| POST `/v1/broker` | Grant and `{target, revision}` | Selected broker policy and member offers |
+| POST `/v1/invoke` | Grant and invocation | One terminal result envelope |
+| POST `/v1/cancel` | Grant and `{operationId, callId, connectionId}` | `204` after recording cancellation |
+| POST `/v1/disconnect` | Grant | `204` after revocation |
 
-Tickets, grants and backend operation tokens are independent, cryptographically
-random bearer secrets (at least 256 bits). Connection, operation and call IDs
-are opaque correlation values. Keep browser-held credentials in tab memory.
-Send the ticket and grant only to the local service, and the operation token
-only to Core. Exclude all three from URLs, logs, Full traces and project exports.
+The local bearer grant and the independent Core operation token stay in tab
+memory. Send the former only to loopback and the latter only to Core. Keep
+both out of URLs, logs, traces and projects. Connection, operation and call
+IDs serve only for correlation.
 
 ## Fields crossing each boundary
 
@@ -81,7 +73,7 @@ Tool Loop. Local limits or an advertised price cannot grant access to Core
 resources. Core takes the lower of its delegated budget and each advertised
 maximum. Local rejects requests exceeding its independently configured limits
 or changing its configured generation values. Local call and output-token
-budgets apply across concurrent requests on the grant. An ambiguously
+budgets apply across all connections to the active configuration. An ambiguously
 completed call consumes its reservation. Installed-model limits keep their
 existing semantics.
 
@@ -158,23 +150,19 @@ of one hour or the configured model request timeout multiplied by
 model request timeout. The Core exchange and the local model routes accept up
 to 2 MiB per JSON request body.
 
-The local service holds at most 32 pending tickets and active grants combined.
-A ticket expires within two minutes. An issued grant has an explicit lifetime
-of up to one day and budgets of up to 1,024 calls and 2³¹ output tokens.
-Submitting a call reserves its full output ceiling, including when actual usage
-is unavailable. Cancellation before invocation consumes one call slot and
-prevents later execution under that ID.
+The local service allows up to 32 concurrent grants lasting up to one day.
+The active configuration has a shared budget of 1,024 calls and 2³¹ output
+tokens. Reconnection does not replenish it. Saving locally or restarting the
+app resets the budget and invalidates earlier grants. An invocation reserves
+its full output ceiling. Early cancellation consumes one call slot and
+prevents later execution of the same ID within that grant.
 
 ## Shared runtime delivery
 
-Core builds the Python wheel `lodeon-model-runtime` from
-`api/lodeon_model_runtime/`. The `model-runtime-wheel` target in
-`api/Dockerfile` exports the artifact. Version 0.1.0 uses LiteLLM 1.104.0.
-The Core gateway remains the owner of request orchestration, tracing, cost and
-provenance. Core and Customizer install the same wheel. The Customizer release build consumes the wheel directly
-from the Core build target and takes the resolver and configuration defaults
-from the same Core checkout. Compose starts the versioned image from the
-GitLab Container Registry. Wire compatibility follows the protocol version.
+Each desktop build installs `lodeon-model-runtime` from the same Core revision
+as the bundled resolver and configuration defaults. Core's API installs its
+own copy from the same source. The desktop archive includes Python and these
+dependencies. Public wire compatibility follows the protocol version.
 
 ## Selected broker policy and personal default
 
@@ -203,10 +191,11 @@ Core validates its closed native policy and membership before reserving.
   The local owner can see what a broker grant discloses. Endpoints, provider
   credentials, environment names and the rest of the local configuration stay
   on the user's machine.
-- **For routed tasks**, the broker uses a routing prompt authorized
-  by the instance. Core resolves its ID locally. If a required routing prompt
-  is unavailable, explain that dependency before execution. A fixed-only
-  broker uses its configured workers directly.
+- **For routed tasks**, the approved target is a routing prompt supplied by
+  the personal broker's owner. The hosted instance requires no per-user prompt
+  registration. Conveying that prompt at broker selection is pending. Core
+  currently rejects personal routed policies. Fixed policies use their
+  configured workers directly.
 
 For example, a personal broker can assign planning to local Ollama and query
 writing to an instance model. Core delegates the planning call, checks the
