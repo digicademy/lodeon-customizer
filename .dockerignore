@@ -1,8 +1,6 @@
 **
 !pyproject.toml
-!runtime.lock
+!config.yml
+!lodeon.package.yml
 !lodeon_customizer/
 !lodeon_customizer/*.py
-!examples/
-!examples/ollama.yml
-!examples/anthropic.yml

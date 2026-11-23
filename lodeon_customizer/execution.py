@@ -7,6 +7,7 @@ from lodeon_model_runtime.contracts import ModelMessage
 from lodeon_model_runtime.errors import classify_litellm_error
 from lodeon_model_runtime.wire import validate_payload
 
+from .configuration import ConfigError
 from .profiles import LocalModels
 
 
@@ -38,6 +39,8 @@ def execute_model(
         raise ValueError("invalid_request")
     try:
         request = models.prepare(profile_id, generation, bounds, messages, tools)
+    except ConfigError:
+        return {**ids, "error": {"code": "assistant.model.unavailable"}}
     except (TypeError, ValueError, RecursionError) as error:
         code = str(error)
         if code not in {"conflict", "denied", "assistant.model.context_limit_exceeded"}:

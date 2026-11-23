@@ -13,7 +13,6 @@ from lodeon_model_runtime.wire import effective_limits, validate_payload
 from lodeon_customizer.execution import execute_model
 from lodeon_customizer.profiles import ConfigError, LocalModels
 
-ROOT = Path(__file__).resolve().parents[1]
 SERVICE = UUID("866af3ff-f622-48e6-8660-25e10bac2fec")
 SENTINEL = "test-only-private-token"
 CALL = dict(
@@ -28,12 +27,35 @@ CALL = dict(
 
 
 class FoundationTest(unittest.TestCase):
+    def setUp(self):
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        self.root = Path(scratch.name)
+        self.ollama = self.config("local-gemma", {
+            "label": "Local Gemma", "provider": "ollama", "model": "gemma4:12b",
+            "baseURLEnv": "OLLAMA_BASE_URL", "generation": {"temperature": 0},
+            "limits": {"maxOutputTokens": 256, "modelRequestTimeoutSeconds": 90},
+            "access": {"allowedGroups": ["staff"]},
+        })
+        self.keyed = self.config("personal-sonnet", {
+            "label": "Personal Sonnet", "provider": "anthropic", "model": "claude-sonnet",
+            "baseURL": "https://api.anthropic.com", "apiKeyEnv": "PERSONAL_ANTHROPIC_API_KEY",
+        })
+
+    def config(self, model_id, profile):
+        profile["promptCaching"] = {"enabled": False, "retention": "default"}
+        path = self.root / (model_id + ".yml")
+        path.write_text(yaml.safe_dump({"assistant": {
+            "defaultModel": model_id, "modelProfiles": {model_id: profile},
+        }}))
+        return path
+
     def test_private_configuration_and_strict_projection(self):
         ollama = LocalModels.load(
-            ROOT / "examples/ollama.yml", SERVICE, {"OLLAMA_BASE_URL": "http://127.0.0.1:11434"}
+            self.ollama, SERVICE, {"OLLAMA_BASE_URL": "http://127.0.0.1:11434"}
         )
         keyed = LocalModels.load(
-            ROOT / "examples/anthropic.yml", SERVICE, {"PERSONAL_ANTHROPIC_API_KEY": SENTINEL}
+            self.keyed, SERVICE, {"PERSONAL_ANTHROPIC_API_KEY": SENTINEL}
         )
         self.assertEqual(ollama.catalog([])["models"], [])
         for models, private_values in [
@@ -46,31 +68,28 @@ class FoundationTest(unittest.TestCase):
             catalog["models"][0]["limits"]["apiKey"] = SENTINEL
             with self.assertRaisesRegex(ValueError, "^invalid_request$"):
                 validate_payload("catalog", catalog)
-        with self.assertRaisesRegex(ConfigError, "^missing_local_setting$"):
-            LocalModels.load(ROOT / "examples/anthropic.yml", SERVICE, {})
 
-    def test_config_rejection(self):
-        with tempfile.TemporaryDirectory() as scratch:
-            path = Path(scratch) / "models.yml"
-            for extra in [
-                "knowledgeGraph: {}\n",
-                "assistant: {modelProfiles: {}, enabled: true}\n",
-                "assistant: {modelProfiles: {}, modelProfiles: {}}\n",
-            ]:
-                path.write_text(extra)
-                with self.assertRaises(ConfigError):
-                    LocalModels.load(path, SERVICE, {})
-            config = yaml.safe_load((ROOT / "examples/ollama.yml").read_text())
-            config["assistant"]["modelProfiles"]["local-gemma"]["access"] = {
-                "allowedGroups": ["staff"]
-            }
-            path.write_text(yaml.safe_dump(config))
-            with self.assertRaisesRegex(ConfigError, "instance_access_policy_unsupported"):
-                LocalModels.load(path, SERVICE, {})
+    def test_configuration_uses_core_schema_and_model_file(self):
+        path = self.root / "config.yml"
+        path.write_text("assistant: {enabled: true, modelProfiles: {}}\nknowledgeGraph: {}\n")
+        self.assertEqual(LocalModels.load(path, SERVICE).profile_ids, ())
+        path.write_text("assistant: {unsupportedField: true}\n")
+        with self.assertRaises(ConfigError):
+            LocalModels.load(path, SERVICE)
+        models = LocalModels.load(self.keyed, SERVICE)
+        env_path = self.root / "models" / ".env"
+        env_path.parent.mkdir()
+        for key in [SENTINEL, "rotated-test-value"]:
+            env_path.write_text("PERSONAL_ANTHROPIC_API_KEY=" + key + "\n")
+            request = models.prepare("personal-sonnet", {}, CALL["bounds"], CALL["messages"], [])
+            self.assertEqual(request.kwargs["api_key"], key)
+        env_path.unlink()
+        with self.assertRaisesRegex(ConfigError, "^missing_local_setting$"):
+            models.prepare("personal-sonnet", {}, CALL["bounds"], CALL["messages"], [])
 
     def test_keyed_completion_and_safe_failure(self):
         models = LocalModels.load(
-            ROOT / "examples/anthropic.yml", SERVICE, {"PERSONAL_ANTHROPIC_API_KEY": SENTINEL}
+            self.keyed, SERVICE, {"PERSONAL_ANTHROPIC_API_KEY": SENTINEL}
         )
         message = {
             "content": "ok",
@@ -105,7 +124,7 @@ class FoundationTest(unittest.TestCase):
 
     def test_bounds_are_enforced_before_provider_execution(self):
         models = LocalModels.load(
-            ROOT / "examples/ollama.yml", SERVICE, {"OLLAMA_BASE_URL": "http://localhost:11434"}
+            self.ollama, SERVICE, {"OLLAMA_BASE_URL": "http://localhost:11434"}
         )
         bounds = CALL["bounds"]
         self.assertEqual(

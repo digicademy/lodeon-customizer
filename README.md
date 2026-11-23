@@ -10,72 +10,56 @@ links a connection through Settings and receives only the public information
 and operation results that this connection permits. Connecting does not merge
 the instance's configuration with the local secret store or expose its contents.
 
-**Current status.** The local catalog command and Python model executor use the
-pinned Core runtime. A local Ollama model has completed a call from the standalone
-image. The HTTP relay, production pairing and Settings action are pending.
-The [roadmap](ROADMAP.md) records the checks against the [v1 protocol](PROTOCOL.md).
+## Start the Customizer
 
-## Planned user setup
-
-Download the release's `docker-compose.yml` and run `docker compose up -d`.
-Compose will pull the prebuilt GitLab Registry image and mount `./data/`.
-On the first start the Customizer will initialize `data/config.yml` from its
-Package configuration. Subsequent starts and updates will keep the user's file.
-Model credentials will be optional and read locally from `data/models/.env`.
-
-The planned small local UI will save model definitions, brokers and the
-default directly to the same `data/config.yml` used for manual edits. For
-example, changing a model's temperature will update its existing
-`assistant.modelProfiles` entry. Replacing a key will update its value in
-`data/models/.env`. The hosted Settings dialog pairs with this service.
-The [roadmap](ROADMAP.md#local-setup-and-configuration-editing) records the
-approved file layout and ownership.
-
-## Developer check for the current prototype
-
-Produce the wheel once from the LODEON Core checkout. Use an empty wheelhouse
-directory. Anyone who already has the pinned wheel can start at the second command.
+The release uses a single `docker-compose.yml` and a prebuilt image from the
+[project's Container Registry](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/container_registry).
+Once image tag `0.1.0` has been published, put the Compose file in a personal
+directory and run:
 
 ```sh
-docker build -f api/Dockerfile --target model-runtime-wheel \
-  --output type=local,dest=/tmp/lodeon-wheelhouse .
+docker compose up -d
 ```
 
-From the Customizer checkout, build the CLI and inspect the example profile.
-The image build verifies the wheel against `runtime.lock`. Catalog inspection
-performs no inference.
+Open the local status page at <http://127.0.0.1:8765/>. On first start
+the service creates `data/config.yml` from the root Package configuration.
+An existing configuration and the service identity survive container
+replacement. Zero configured models is a valid starting point.
+
+Edit `assistant.modelProfiles`, `assistant.modelBrokers` and
+`assistant.defaultModel` in `data/config.yml` using the regular LODEON syntax.
+Place model keys in `data/models/.env` using `NAME=value` and reference the
+name with `apiKeyEnv`. The service reads this file for each model invocation.
+Keep this directory private. With rootful Docker on Linux, the files may be
+owned by root. Give your local account ownership of the data directory for
+manual editing. Use a clean Package checkout for hosted composition, separate
+from the personal directory containing the downloaded Compose file.
+
+To inspect the current ordinary model offers locally:
 
 ```sh
-docker build --build-context model_runtime=/tmp/lodeon-wheelhouse -t lodeon-customizer .
-docker run --rm --network=none -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-  lodeon-customizer catalog --config /examples/ollama.yml \
-  --service-id 866af3ff-f622-48e6-8660-25e10bac2fec
+docker compose exec customizer lodeon-customizer catalog
 ```
 
-The UUID above is an example. Generate one UUID for your service
-(`python3 -c 'import uuid; print(uuid.uuid4())'`) and reuse it across starts.
-The public target combines this UUID and your YAML profile ID. Each load creates
-a fresh catalog revision, including when private configuration changes.
+The landing page currently reports service availability. The planned local
+editor will update the same `data/config.yml` as manual edits, and will keep
+key values in `data/models/.env`. Pairing, broker binding, and the hosted
+Settings action are pending. See the [roadmap](ROADMAP.md#local-setup-and-configuration-editing).
 
-Supply your own file with a read-only bind mount and pass its container path
-to `--config`. The accepted root is `assistant.modelProfiles`. Instance
-settings such as `defaultModel`, Brokers or KG sections are rejected. Two
-examples show [Ollama](examples/ollama.yml) and a
-[native keyed provider](examples/anthropic.yml). For the latter, set
-`PERSONAL_ANTHROPIC_API_KEY` in your local environment and pass its name with
-`docker run -e PERSONAL_ANTHROPIC_API_KEY …`. Keep personal files outside the
-image. The build context admits only the two distributed example files as YAML.
+## Build the release image
 
-| Profile data | Treatment |
-| --- | --- |
-| Profile ID, label, optional description, provider, generation, prompt caching, optional limits and cost | Public catalog fields. Choose labels and descriptions suitable for disclosure to a connected instance. |
-| Native model ID, endpoint, Ollama settings and provider credential | Private execution inputs. Environment references resolve on the user's machine or in the local container. Missing referenced values stop configuration loading. |
-| `access.allowedGroups` | A nonempty instance group restriction is rejected. Local origin and model grants are a separate boundary. |
+From the Customizer checkout at `vendor/lodeon-customizer` run:
 
-For an actual Ollama call from Docker Desktop, use the host address from the
-example without `--network=none`. The CLI available at this stage inspects
-catalogs. The Python executor accepts prepared model calls from trusted local
-code. The browser transport will add origin, grant and operation checks.
+```sh
+docker buildx bake -f docker-bake.hcl --allow=fs.read=../.. --load
+```
+
+Bake uses the current Core checkout for both the Core-owned
+`model-runtime-wheel` build target and the Package resolver. For a separate
+checkout, set `CORE_ROOT` and grant Bake read access to that directory. No
+separately downloaded wheel is needed. The local image has the exact name
+and version used by Compose. Maintainers publish that image to the project
+registry as a separate release action.
 
 ## First Capability: Personal Models
 

@@ -1,8 +1,9 @@
 # LODEON Customizer Roadmap
 
 Implementation requested on 2026-11-22. The Step 1 browser check is complete
-for individual model offers. Step 2 remains open for Package configuration
-and delivery. The wheel and local executor have prototype evidence. The
+for individual model offers. Step 2 now has a locally verified Compose image,
+Package resolver and persistent data directory. Registry publication and an
+anonymous download of the published tag are pending. The
 broker and default-model additions to the public protocol still need review. This is
 the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
 coordinated review steps, including component delivery and Core integration.
@@ -268,7 +269,19 @@ normalized completion without copying provider code. Inspect a sentinel-secret
 projection. Customizer implementation and operational progress are recorded
 here.
 
-**Prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
+**Local delivery check, 2026-11-23.** The Core build target supplied the wheel
+for the versioned Customizer image. Starting from the single Compose file
+created the personal configuration and service identity. Recreating the
+container preserved both files byte for byte and served the local landing
+page. The unchanged models-production configuration produced eleven offers.
+All 28 Core schema tests and four Customizer checks passed, including key
+rotation from disk. The local configuration editor and hosted pairing are pending.
+
+An unauthenticated Registry v2 client obtained the pull scope for the exact
+project path. The GitLab repository listing was empty and `latest` had no
+manifest. A complete anonymous image pull still requires a published tag.
+
+**Earlier prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
 loads its adapters from site-packages. The independent Customizer image
 consumes the same wheel through the SHA-256 in `runtime.lock`. Its local
 CLI reads `assistant.modelProfiles`, resolves local environment references

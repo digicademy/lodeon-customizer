@@ -1,42 +1,25 @@
 """Load the user's private profiles and project only explicitly approved public offers."""
 
 import json
-import os
-import re
 from collections.abc import Collection, Mapping
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
-import yaml
-from lodeon_model_runtime.profiles import validate_model_profile_contract
+from lodeon_model_runtime.profiles import resolve_model_limits, validate_model_profile_contract
 from lodeon_model_runtime.wire import validate_payload
+from resolver.errors import ConfigResolverError
+
+from .configuration import ConfigError, load_assistant, read_model_environment
 
 
-class ConfigError(ValueError):
-    """Report configuration failure without disclosing a local path, value or environment name."""
-
-
-class _UniqueKeysLoader(yaml.SafeLoader):
-    def construct_mapping(self, node, deep=False):
-        mapping = super().construct_mapping(node, deep=deep)
-        if len(mapping) != len(node.value):
-            raise ConfigError("duplicate_config_key")
-        return mapping
-
-
-def _resolve(profile_id, configured, environment):
-    validate_model_profile_contract(profile_id, configured)
+def _resolve(configured, environment):
     profile = deepcopy(configured)
-    access = profile.pop("access", {})
-    if access not in ({}, {"allowedGroups": []}):
-        raise ConfigError("instance_access_policy_unsupported")
+    profile.pop("access", None)
     for field in ("baseURL", "apiKey"):
         env_name = profile.pop(field + "Env", None)
         if env_name is not None:
-            if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", env_name):
-                raise ConfigError("invalid_environment_reference")
             value = environment.get(env_name)
             if not value or not value.strip():
                 raise ConfigError("missing_local_setting")
@@ -58,38 +41,24 @@ def _resolve(profile_id, configured, environment):
 class LocalModels:
     """Own a private snapshot for the lifetime of one configuration revision."""
 
-    def __init__(self, service_id: UUID, profiles):
+    def __init__(self, service_id, assistant, env_path, environment):
         self._service_id = str(service_id)
         self.revision = uuid4().hex
-        self._profiles = profiles
+        self._profiles = assistant["modelProfiles"] if assistant["enabled"] else {}
+        self._limits = assistant["limits"]
+        self._env_path = env_path
+        self._environment = environment
+        self.default_model = assistant.get("defaultModel")
+        self.brokers = assistant["modelBrokers"] if assistant["enabled"] else {}
 
     @classmethod
     def load(cls, path: Path, service_id: UUID, environment: Mapping[str, str] | None = None):
         try:
-            document = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeysLoader)
-            if not isinstance(document, dict) or set(document) != {"assistant"}:
-                raise ConfigError("invalid_config")
-            assistant = document["assistant"]
-            if not isinstance(assistant, dict) or set(assistant) != {"modelProfiles"}:
-                raise ConfigError("invalid_config")
-            configured = assistant["modelProfiles"]
-            if not isinstance(configured, dict):
-                raise ConfigError("invalid_config")
-            # Reject non-JSON YAML values before they can reach offers or provider options.
-            json.dumps(configured, allow_nan=False)
-            env = os.environ if environment is None else environment
-            snapshot = cls(
-                service_id,
-                {
-                    profile_id: _resolve(profile_id, profile, env)
-                    for profile_id, profile in configured.items()
-                },
-            )
-            snapshot.catalog(snapshot.profile_ids)
-            return snapshot
-        except ConfigError:
-            raise
-        except (OSError, ValueError, TypeError, RecursionError, yaml.YAMLError):
+            assistant = load_assistant(path)
+            for profile_id, profile in assistant["modelProfiles"].items():
+                validate_model_profile_contract(profile_id, profile)
+            return cls(service_id, assistant, path.parent / "models" / ".env", environment)
+        except (OSError, ValueError, ConfigResolverError, RecursionError):
             raise ConfigError("invalid_config") from None
 
     @property
@@ -114,8 +83,8 @@ class LocalModels:
                 "serviceId": self._service_id,
                 "profileId": profile_id,
             }
-            for key in ("generation", "limits"):
-                offer[key] = deepcopy(profile.get(key, {}))
+            offer["generation"] = deepcopy(profile.get("generation", {}))
+            offer["limits"] = resolve_model_limits(self._limits, profile)
             models.append(offer)
         catalog = {"revision": self.revision, "models": models}
         validate_payload("catalog", catalog)
@@ -133,7 +102,7 @@ class LocalModels:
         validate_payload("bounds", bounds)
         if (
             generation != profile.get("generation", {})
-            or effective_limits(bounds, profile.get("limits", {})) != bounds
+            or effective_limits(bounds, resolve_model_limits(self._limits, profile)) != bounds
         ):
             raise ValueError("conflict")
         request_body = json.dumps(
@@ -144,4 +113,7 @@ class LocalModels:
         )
         if len(request_body) > bounds["maxInputCharacters"]:
             raise ValueError("assistant.model.context_limit_exceeded")
-        return prepare_model_request(profile, bounds, messages, tools)
+        environment = self._environment
+        if environment is None and ("apiKeyEnv" in profile or "baseURLEnv" in profile):
+            environment = read_model_environment(self._env_path)
+        return prepare_model_request(_resolve(profile, environment or {}), bounds, messages, tools)

@@ -154,10 +154,7 @@ Core builds the Python wheel `lodeon-model-runtime` from
 `api/lodeon_model_runtime/`. The `model-runtime-wheel` target in
 `api/Dockerfile` exports the artifact. Version 0.1.0 uses LiteLLM 1.104.0.
 The Core gateway remains the owner of request orchestration, tracing, cost and
-provenance. Core and Customizer install the same wheel. The Customizer Docker
-build consumes an exact-version wheel from a build-time wheelhouse with its
-pinned SHA-256 and matching Core provider dependencies. A local Core build
-can supply the wheelhouse for development. A release can distribute those
-same bytes independently. Building or running the service requires no Core
-checkout when the artifact is supplied. Wire compatibility is selected by
-protocol version independently of the wheel release.
+provenance. Core and Customizer install the same wheel. The Customizer release build consumes the wheel directly
+from the Core build target and takes the resolver and configuration defaults
+from the same Core checkout. Compose starts the versioned image from the
+GitLab Container Registry. Wire compatibility follows the protocol version.

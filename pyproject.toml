@@ -7,7 +7,7 @@ name = "lodeon-customizer"
 version = "0.1.0"
 description = "Local configuration and execution of personal LODEON models"
 requires-python = ">=3.12"
-dependencies = ["lodeon-model-runtime==0.1.0", "PyYAML==6.0.3"]
+dependencies = ["lodeon-model-runtime==0.1.0", "PyYAML==6.0.3", "python-dotenv==1.2.4"]
 
 [project.scripts]
 lodeon-customizer = "lodeon_customizer.cli:main"
