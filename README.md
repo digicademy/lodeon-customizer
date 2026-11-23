@@ -48,7 +48,12 @@ Settings action are pending. See the [roadmap](ROADMAP.md#local-setup-and-config
 
 ## Build the release image
 
-From the Customizer checkout at `vendor/lodeon-customizer` run:
+The release tag contains both `linux/amd64` and `linux/arm64`. Compose
+selects the matching image automatically. The Python source files live directly
+in `src/`. Installing the package provides the `lodeon-customizer` command.
+
+To build and load both variants locally using a multi-platform builder and
+a containerd image store, run this from `vendor/lodeon-customizer`:
 
 ```sh
 docker buildx bake -f docker-bake.hcl --allow=fs.read=../.. --load
@@ -58,8 +63,15 @@ Bake uses the current Core checkout for both the Core-owned
 `model-runtime-wheel` build target and the Package resolver. For a separate
 checkout, set `CORE_ROOT` and grant Bake read access to that directory. No
 separately downloaded wheel is needed. The local image has the exact name
-and version used by Compose. Maintainers publish that image to the project
-registry as a separate release action.
+and version used by Compose.
+
+For publication, an authenticated maintainer can build and push the complete
+index directly, then inspect the published platforms:
+
+```sh
+docker buildx bake -f docker-bake.hcl --allow=fs.read=../.. --push
+docker buildx imagetools inspect registry.gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer:0.1.0
+```
 
 ## First Capability: Personal Models
 

@@ -76,7 +76,8 @@ here, not in a second model-only repository.
 ### Local Setup And Configuration Editing
 
 - Distribute a single `docker-compose.yml` that starts the prebuilt image from
-  the GitLab Container Registry with `docker compose up -d`. Build its wheel
+  the GitLab Container Registry with `docker compose up -d`. Each release
+  tag contains both `linux/amd64` and `linux/arm64`. Build its wheel
   from the current Core revision for that release. The user needs neither
   repository to start the service.
 - Ship a regular LODEON Package with `lodeon.package.yml` and a root
@@ -276,6 +277,11 @@ container preserved both files byte for byte and served the local landing
 page. The unchanged models-production configuration produced eleven offers.
 All 28 Core schema tests and four Customizer checks passed, including key
 rotation from disk. The local configuration editor and hosted pairing are pending.
+
+The release build installs the Python modules directly from `src/`.
+The locally built `0.1.0` image index contains `linux/amd64` and `linux/arm64`.
+The installed catalog command and all four offline Customizer checks passed
+on each image. Docker Desktop ran the AMD64 variant on an ARM64 host.
 
 An unauthenticated Registry v2 client obtained the pull scope for the exact
 project path. The GitLab repository listing was empty and `latest` had no

@@ -2,5 +2,5 @@
 !pyproject.toml
 !config.yml
 !lodeon.package.yml
-!lodeon_customizer/
-!lodeon_customizer/*.py
+!src/
+!src/*.py

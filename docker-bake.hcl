@@ -14,6 +14,7 @@ target "core-wheel" {
 
 target "customizer" {
   context = "."
+  platforms = ["linux/amd64", "linux/arm64"]
   contexts = {
     model_runtime = "target:core-wheel"
     core          = CORE_ROOT
