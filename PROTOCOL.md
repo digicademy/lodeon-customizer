@@ -3,11 +3,12 @@
 This is the implementation contract for the first capability. The executable
 Step 1 counterpart exercises pairing, catalog access and browser security.
 The installed runtime now validates catalog and result payloads against
-`lodeon_model_runtime/personal-models-v1.schema.json` in the wheel. The
-production HTTP service, Assistant routes and Settings integration are subsequent steps.
+`lodeon_model_runtime/personal-models-v1.schema.json` in the wheel. The working tree
+includes the Core exchange and local model HTTP handlers. The published 0.1.0
+image provides the local foundation. Hosted Settings belongs to Step 4.
 
-The v1 envelopes below describe individual model offers. A
-[Step 3 proposal](#step-3-proposal-for-review) describes the additional
+The v1 envelopes below describe individual model offers. The
+[approved broker contract](#selected-broker-policy-and-personal-default) describes the additional
 disclosure needed for mixed brokers and a connected-user default. Local
 administration uses the Customizer's own UI and files.
 The pairing grant described here cannot authorize configuration or key edits.
@@ -149,6 +150,21 @@ share the same denial. A browser network failure maps to `connection_failed`,
 explicit cancellation to `cancelled`. The wire codes are fixed identifiers.
 Core maps them to its registered errors. Never forward free-form diagnostics.
 
+### Current transport bounds
+
+Core holds up to 32 live operations per process. Each expires after the earlier
+of one hour or the configured model request timeout multiplied by
+`2 + maxToolCallsPerTurn`. Each individual call also observes its effective
+model request timeout. The Core exchange and the local model routes accept up
+to 2 MiB per JSON request body.
+
+The local service holds at most 32 pending tickets and active grants combined.
+A ticket expires within two minutes. An issued grant has an explicit lifetime
+of up to one day and budgets of up to 1,024 calls and 2³¹ output tokens.
+Submitting a call reserves its full output ceiling, including when actual usage
+is unavailable. Cancellation before invocation consumes one call slot and
+prevents later execution under that ID.
+
 ## Shared runtime delivery
 
 Core builds the Python wheel `lodeon-model-runtime` from
@@ -160,11 +176,19 @@ from the Core build target and takes the resolver and configuration defaults
 from the same Core checkout. Compose starts the versioned image from the
 GitLab Container Registry. Wire compatibility follows the protocol version.
 
-## Step 3 proposal for review
+## Selected broker policy and personal default
 
-The following exchange is proposed for the next protocol revision. Image
-`0.1.0` implements the local foundation. Its existing catalog schema describes
-individual models only.
+The approved extension uses two additional local routes under the existing v1
+prefix. The individual-model catalog and terminal result retain their wire formats.
+`GET /v1/targets` returns `revision`, granted `models` and `brokers`, and
+optionally `defaultTarget`. A broker summary contains its target, label,
+optional description and typed member references. The browser checks those
+references against both authorized catalogs. When an operation selects a
+broker, `POST /v1/broker` takes `{target, revision}` with the local grant.
+Its response contains `{target, members, models, policy}`. Members identify
+their source and profile; personal members also identify their local service.
+A broker reservation carries this object in `broker` in place of `offer`.
+Core validates its closed native policy and membership before reserving.
 
 - **On connection**, the tab receives granted model and broker summaries.
   For a broker it also needs the member IDs to check availability. Each member
@@ -179,7 +203,7 @@ individual models only.
   The local owner can see what a broker grant discloses. Endpoints, provider
   credentials, environment names and the rest of the local configuration stay
   on the user's machine.
-- **For routed tasks**, the proposal uses a broker-routing prompt authorized
+- **For routed tasks**, the broker uses a routing prompt authorized
   by the instance. Core resolves its ID locally. If a required routing prompt
   is unavailable, explain that dependency before execution. A fixed-only
   broker uses its configured workers directly.

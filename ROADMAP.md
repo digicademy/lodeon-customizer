@@ -1,10 +1,10 @@
 # LODEON Customizer Roadmap
 
 Implementation requested on 2026-11-22. The Step 1 browser check is complete
-for individual model offers. The published Step 2 image passed anonymous pulls
-on both platforms and a fresh Compose start. Public delivery of the standalone
-Compose file is still open. The [Step 3 proposal](PROTOCOL.md#step-3-proposal-for-review)
-on broker policies and the connected user's default is ready for review. This is
+for individual model offers. Step 2 is complete. The public Compose file matches the tested checkout,
+and the published image passed anonymous pulls on both platforms and a fresh
+Compose start. The [broker/default contract](PROTOCOL.md#selected-broker-policy-and-personal-default)
+is approved. Step 3 implementation is in progress. This is
 the authoritative feature plan in the user-created lodeon-customizer repository. It owns all seven
 coordinated review steps, including component delivery and Core integration.
 
@@ -294,10 +294,8 @@ configuration and started from a fresh directory containing only the checkout's
 empty, and the service created the packaged configuration, a valid service ID
 and the model directory without any credentials.
 
-At the time of this check the public GitLab `main` branch contained only
-`README.md` and `ROADMAP.md`. The raw Compose download returned HTTP 404.
-Once the Compose file is published, verify its anonymous download against
-the file used for this successful startup.
+After the source push, an anonymous HTTPS download of the raw `main` Compose
+file matched the checkout byte for byte. This closes the Step 2 delivery check.
 
 **Earlier prototype evidence, 2026-11-23.** The production Core API installs wheel 0.1.0 and
 loads its adapters from site-packages. The independent Customizer image
@@ -325,8 +323,7 @@ image previews. Core's committed configuration specifies twelve.
 
 ### Step 3 — Implement The Backend Delegation Transport
 
-Review the broker/default additions to the individual-model protocol before
-implementing them. At connection time resolve mixed broker members against
+The broker policy disclosure and personal default are approved. At connection time resolve mixed broker members against
 local grants and directly authorized instance model profiles. An unresolved
 or ambiguous member makes the affected broker unavailable. Implement the
 request-local exchange at the existing gateway with bounded transient state,
@@ -344,6 +341,25 @@ locally approved exact origins, scoped pairing grants, revocation and local
 call/token bounds. Validate Host/Origin and reject endpoint injection,
 secret/configuration reads and administrative operations from the hosted app.
 Filter credential-bearing provider diagnostics before any response or log.
+
+**Working-tree verification, 2026-11-23.** The real Core HTTP probe completes with zero
+installed models using a neutral HTTP client. Headless Firefox 142.0.1 also completed
+the exchange through ordinary same-origin browser requests. It received the prepared
+`lodeon_probe_tool` schema with a 24-token output ceiling and returned a controlled
+native Tool call. The Assistant reported the probe as available. This browser check
+used a neutral counterpart and performed no provider inference. Core rejects a foreign origin, a missing
+graph, the wrong token, a different session of the same user, mismatched calls and
+duplicate results. Revoking graph access, logging out and expiry invalidate pending
+authority. The local HTTP test covers a one-use ticket, Host/Origin checks, catalog
+and selected-broker disclosure, a provider fixture, replay, early cancellation, the
+grant budget and disconnect. These checks use an in-process grant issuer. Image
+`0.1.0` remains the previously published foundation.
+
+Two implementation decisions remain open: how the locally operated CLI issues and
+revokes grants in the running service, and how the instance operator permits specific
+routing prompt IDs. Until a mechanism is selected, personal routed policies are
+rejected at reservation. A fixed policy needs no prompt release. The hosted Settings
+UI and complete query/evidence/answer test remain in Steps 4 and 5.
 
 **Review:** a neutral browser counterpart completes a request. A second user,
 anonymous tab or wrong operation cannot read its model input or submit its

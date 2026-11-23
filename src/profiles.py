@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from lodeon_model_runtime.profiles import resolve_model_limits, validate_model_profile_contract
 from lodeon_model_runtime.wire import validate_payload
+from resolver.configuration_schema import validate_delegated_broker
 from resolver.errors import ConfigResolverError
 
 from .configuration import ConfigError, load_assistant, read_model_environment
@@ -78,17 +79,73 @@ class LocalModels:
                 for key in ("label", "provider", "description", "cost", "promptCaching")
                 if key in profile
             }
-            offer["target"] = {
-                "source": "personal",
-                "serviceId": self._service_id,
-                "profileId": profile_id,
-            }
+            offer["target"] = self.target(profile_id)
             offer["generation"] = deepcopy(profile.get("generation", {}))
             offer["limits"] = resolve_model_limits(self._limits, profile)
             models.append(offer)
         catalog = {"revision": self.revision, "models": models}
         validate_payload("catalog", catalog)
         return catalog
+
+    def target(self, profile_id):
+        return {"source": "personal", "serviceId": self._service_id, "profileId": profile_id}
+
+    def _members(self, broker):
+        return [
+            self.target(member)
+            if member in self._profiles
+            else {"source": "instance", "profileId": member}
+            for member in broker["members"]
+        ]
+
+    def targets(self, allowed_ids: Collection[str]) -> dict:
+        """List granted targets without sending execution policy at connection time."""
+        allowed = set(allowed_ids)
+        if allowed - self._profiles.keys() - self.brokers.keys():
+            raise ValueError("denied")
+        catalog = self.catalog(allowed.intersection(self._profiles))
+        catalog["brokers"] = [
+            {
+                "target": self.target(identifier),
+                **{key: broker[key] for key in ("label", "description") if key in broker},
+                "members": self._members(broker),
+            }
+            for identifier, broker in self.brokers.items()
+            if identifier in allowed
+        ]
+        if self.default_model in allowed:
+            catalog["defaultTarget"] = self.target(self.default_model)
+        validate_payload("targets", catalog)
+        return catalog
+
+    def selected_broker(self, target: dict, allowed_ids: Collection[str]) -> dict:
+        """Disclose only the selected granted broker and its granted local workers."""
+        validate_payload("target", target)
+        identifier = target["profileId"]
+        if (
+            target != self.target(identifier)
+            or identifier not in allowed_ids
+            or identifier not in self.brokers
+        ):
+            raise ValueError("denied")
+        broker = self.brokers[identifier]
+        local_members = self._profiles.keys() & broker["members"].keys()
+        if local_members.difference(allowed_ids):
+            raise ValueError("denied")
+        policy = {
+            key: deepcopy(broker[key])
+            for key in ("label", "description", "router", "members", "tasks")
+            if key in broker
+        }
+        validate_delegated_broker(policy)
+        selection = {
+            "target": target,
+            "members": self._members(broker),
+            "policy": policy,
+            "models": self.catalog(local_members)["models"],
+        }
+        validate_payload("selectedBroker", selection)
+        return selection
 
     def prepare(self, profile_id, generation, bounds, messages, tools):
         """Prepare a trusted local call. Browser grant and operation checks belong to the transport."""
