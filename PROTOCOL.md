@@ -56,9 +56,9 @@ Tool arguments and message content follow their existing Core contracts.
 | Fields | From → to | Meaning and disclosure |
 | --- | --- | --- |
 | `target = {source: "personal", serviceId, profileId}` | Local → tab → selected Core operation | Stable public service UUID generated once locally, plus the local profile's public ID. Compare the tuple, never a label. Project and chat `modelId` use Core’s existing `personal:<serviceId>:<profileId>` representation of this tuple. Reconnection verifies it. Sharing a project can disclose these public IDs. Installed target IDs retain their existing meaning. |
-| `offer = {target, label, description?, provider, generation, promptCaching, limits, cost?}` | Local → tab. Only the selected offer → Core | Allowlist public configuration intentionally supplied for display or budgeting. Use the existing four provider IDs and canonical nested profile fields/types. Omitted local generation/limit settings project as empty objects. Render strings as text. Native model name, endpoint, paths, env names, credentials, local access lists and raw YAML stay local. |
+| `offer = {target, label, description?, provider, generation, promptCaching, limits, cost?}` | Local → tab. The selected model's offer or the selected broker's local member offers → Core | Allowlist public configuration intentionally supplied for display or budgeting. Use the existing four provider IDs and canonical nested profile fields/types. Omitted local generation/limit settings project as empty objects. Render strings as text. Native model name, endpoint, paths, env names, credentials, local access lists and raw YAML stay local. |
 | `revision, connectionId` | Local → tab → Core | Opaque catalog snapshot and per-grant connection ID. Bind both to the operation and reject changes before dispatch. A changed catalog or grant requires a new operation. |
-| `kind, knowledgeGraphProfileId, offer, revision, connectionId` | Tab → Core | Authorize and reserve the exchange for exactly one `chat`, `probe` or `suggestions` request. Core applies its own policy and budget to all browser-supplied metadata. |
+| `kind, knowledgeGraphProfileId, revision, connectionId` plus either `offer` or `broker` | Tab → Core | Authorize and reserve the exchange for exactly one `chat`, `probe` or `suggestions` request. Core applies its own policy and budget to all browser-supplied metadata. |
 | `operationId, operationToken, expiresInSeconds` | Core → tab | Short-lived authority for this operation only. Local receives the correlation ID on calls. Core and tab alone hold the token. |
 | `operationId, callId, connectionId, revision, target, task` | Core → tab → local | Identify one call. Use the existing Core task enum. Local checks the grant, target and revision before dispatch. |
 | `messages, tools, generation, bounds` | Core → tab → local | Exact prepared provider-neutral messages and offered function schemas (`[]` for a tool-free call). Generation allows only `temperature`, `topP`, `reasoningEffort` from the approved profile. Bounds contain positive `maxInputCharacters`, `maxOutputTokens` and `modelRequestTimeoutSeconds`. Both sides enforce their own limits. |
@@ -102,7 +102,7 @@ addresses, other users' offers and local pairing state stay out of status.
    ordinary payload and the headers `X-Lodeon-Operation-Id` and
    `X-Lodeon-Operation-Token`. Omit the installed `modelId`. Bind before
    tracing, reject a conflicting model, kind or graph, and attach the reserved
-   offer to that request. Keep the existing operation open for its ordinary
+   model offer or broker policy to that request. Keep the existing operation open for its ordinary
    final HTTP response. The gateway exposes at most one pending invocation
    per operation and waits on a condition until reply, cancellation or timeout.
 3. **Deliver once.** `POST /next` with both headers and empty body waits up

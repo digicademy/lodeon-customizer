@@ -87,8 +87,10 @@ here, not in a second model-only repository.
   user-data locations and browser review are specified in the [README](README.md).
 
 - The text editor and the small local Customizer UI share one editable file,
-  `data/config.yml`, and the Core Package resolver and schema. Saving a model,
-  broker or default in the UI updates that file directly. A save must retain
+  `data/config.yml`, and the Core Package resolver and schema. The current UI
+  saves the instance URL and edits an existing model's temperature. Users
+  define models, brokers and the default in YAML. Future forms for those
+  settings must update the same file directly. A save must retain
   unrelated YAML settings and detect intervening file edits before replacing
   them. Invalid edits leave the last valid configuration available. Rotating
   a key under the same name updates only the model credentials file. The UI
@@ -452,6 +454,12 @@ omits the tracked diagnostics module. Resolve these before freezing the
 inputs for consolidated acceptance.
 
 ### Step 7 — Consolidated Acceptance, Documentation And Closure
+
+The Assistant's connection dialog links to this repository's README and
+public GitLab Releases. The tagged pipeline publishes the five reviewed
+archives and verification files in the Generic Package Registry. Release
+acceptance still requires a successful tagged run, recorded native browser
+reviews and anonymous access to the published downloads.
 
 Run one bounded final acceptance from committed, unchanged Core, Documentation,
 Roadmap and Customizer inputs; record revisions and statuses before/after using

@@ -1,16 +1,42 @@
 # LODEON Customizer
 
-LODEON Customizer is a standalone desktop app for connecting personal models to a compatible LODEON instance. The same download works with any instance that supports delegation. Python, the Core model runtime, the configuration resolver and the Package defaults ship inside the app.
+Use your own model in the Assistant of a LODEON instance you already use. The Customizer runs on your computer. It includes its runtime and works with any instance that permits personal models for your session.
 
-## Start and configure
+## Get the app and connect your first model
 
-1. Extract the archive for your computer. Open **LODEON Customizer.app** on macOS, **LODEON Customizer.exe** on Windows, or **LODEON Customizer** on Linux. Keep the extracted application directory together.
-2. The app opens its settings in your default browser. Enter the HTTPS address of your LODEON instance, including its deployment path, and choose **Save instance**. For example, enter `https://stories.example.org/lodeon/`. Browser authorization applies to the whole origin, including other paths on that origin.
-3. The settings page shows the paths to your personal model configuration and credentials. Use **Quit Customizer** on that page to stop the app. Opening it again restores the saved configuration. Closing the browser tab leaves the app running.
+1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open the public [GitLab Releases](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases) page in a new tab. **Setup and user guide** opens this README. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
+2. In the newest release, choose the download for your computer from the table below. Extract the entire archive to a folder on your computer and open the app. Keep the extracted files together.
+3. The app opens a **local settings page** in your default browser. Enter the HTTPS address of the LODEON instance you use, including its deployment path, and choose **Save instance**. For example, enter `https://stories.example.org/lodeon/`. This authorizes pages on that browser origin, including other paths on it.
+4. On first launch the model list is empty. Add your first model in the local file shown on the settings page using [Configure a personal model](#configure-a-personal-model) below. You do this once per model.
+5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
-The local settings address is `http://127.0.0.1:8765/`. The local page edits the temperature of each existing model directly in its YAML profile. Clearing the field restores the configured defaults. Reload the local page after hand-editing the file. If the file changed while a form was open, saving asks you to review the new contents.
+| Your computer | Release download | Open after extraction |
+| --- | --- | --- |
+| Windows with an Intel or AMD 64-bit processor | **Windows · x64** (ZIP) | `LODEON Customizer.exe` |
+| Mac with an Apple M-series chip | **macOS · Apple silicon** (ZIP) | `LODEON Customizer.app` |
+| Mac with an Intel processor | **macOS · Intel** (ZIP) | `LODEON Customizer.app` |
+| Linux with glibc on an Intel or AMD 64-bit processor | **Linux · x64** (tar.gz) | `LODEON Customizer` |
+| Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON Customizer` |
 
-In the hosted Assistant choose **Settings → Connect personal models → Connect**. Allow the browser's local-network permission if prompted. The selector and **Model information** show the authorized targets, sorted by name and labeled by source. The available personal default becomes active immediately. Use **Disconnect** in the same dialog. Each tab connects separately. After saving locally or restarting the app, disconnect and reconnect to read the current catalog. Reloading the Editor or opening a project does not initiate a connection. The project retains the public model reference. Keep the connected tab and Customizer open when using Chat, **Check Tools** or suggested questions with a personal selection.
+On a Mac, **Apple menu → About This Mac** identifies the chip. A release lists the five applications separately from GitLab's automatic source archives. An empty Releases page means a desktop release has yet to be published.
+
+## Configure a personal model
+
+The settings page shows the exact path to your personal `config.yml`. For example, to use a model already installed in Ollama on the same computer, open that file in a text editor. Keep the saved `instance` line. In a fresh configuration, replace the empty `assistant` section with the following. For an existing setup, add the profile under its existing `modelProfiles` mapping. Replace `gemma4:12b` with the exact name of your installed model.
+
+```yaml
+assistant:
+  defaultModel: local-ollama
+  modelProfiles:
+    local-ollama:
+      label: My Ollama
+      provider: ollama
+      model: gemma4:12b
+      baseURL: http://127.0.0.1:11434
+      promptCaching: {enabled: false, retention: default}
+```
+
+Save the file, reload the local settings page and choose **Save instance** to apply it, or quit and reopen the app. For a provider that requires a key, set `apiKeyEnv` in its profile to a name such as `PERSONAL_API_KEY` and put `PERSONAL_API_KEY=your-key` in the displayed `models/.env` file. The app reads the key on each invocation and sends it only to that provider. Define additional profiles, brokers and the default in YAML. The local page lets you change an existing model's temperature directly. Clear it to restore the configured default.
 
 | System | Personal files |
 | --- | --- |
@@ -18,7 +44,13 @@ In the hosted Assistant choose **Settings → Connect personal models → Connec
 | macOS | `~/Library/Application Support/LODEON Customizer/data/` |
 | Linux | `$XDG_DATA_HOME/LODEON Customizer/data/`, defaulting to `~/.local/share/LODEON Customizer/data/` |
 
-The first launch initializes `data/config.yml` from the packaged defaults. Zero models is a valid configuration. The local `instance` field holds the address. Define `assistant.modelProfiles`, `assistant.modelBrokers` and `assistant.defaultModel` using the same keys as any LODEON Package. For an already running Ollama on this computer use its ordinary loopback address. Save local settings or restart after editing the YAML. For keyed providers, put `NAME=value` in `data/models/.env` and reference `NAME` with `apiKeyEnv`. Keys are read at invocation and sent only to the configured provider. Keep the personal data directory private.
+## Reconnect, disconnect or quit
+
+Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. After an Editor reload, a local configuration change or an app restart, return to **Settings → Connect personal models** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
+
+If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
+
+Choose **Disconnect** to release just the current tab. Choose **Quit Customizer** on the local settings page to stop the app. Closing the local settings tab leaves it running. Your local configuration is available the next time you start it.
 
 The hosted instance owns orchestration, tools, SPARQL and final synthesis. The connected tab passes prepared model calls to the Customizer and returns their results to Core. A mixed broker uses the same connection for its local workers. Core calls its authorized instance workers directly. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
 
@@ -72,6 +104,8 @@ The GitLab pipeline resolves `LODEON_CORE_REF` to one commit for the entire rele
 
 Use shell runners with Python 3.12 available as `python`, port 8765 free, and standard OS build tools. Build on the oldest OS/glibc version intended for each published binary and record the actual runner OS and architecture. Tagged macOS builds need `MACOS_SIGN_IDENTITY` and `MACOS_NOTARY_PROFILE` in the signing keychain. Tagged Windows builds need `WINDOWS_SIGN_THUMBPRINT` and `WINDOWS_TIMESTAMP_URL`. Signing access belongs on protected release runners/tags. Development candidates can be built unsigned.
 
-For each tag, the release reviewer opens the extracted candidates through Finder, Explorer and the Linux desktop as an ordinary user in a clean profile. Verify that the default browser opens, entering the instance works, restarting preserves personal data, and quitting releases the port. From the compatible hosted Settings UI, verify connect, one model call and disconnect in Safari on macOS, Edge on Windows and Firefox on Linux with normal browser security. Record OS version, architecture, browser version and results on the release ticket before confirming the blocking **desktop-review** job. A missing Settings client or a browser that blocks loopback leaves this review open. These user-visible checks complement the automated executable tests.
+For each tag, open **Build → Pipelines** in the Customizer project and select the tag pipeline. Each **native-app** job provides a candidate archive for its platform under its job artifacts. Open the extracted candidates through Finder, Explorer and the Linux desktop as an ordinary user in a clean profile. Verify that the default browser opens, entering the instance works, restarting preserves personal data, and quitting releases the port. From the compatible hosted Settings UI, verify connect, one model call and disconnect in Safari on macOS, Edge on Windows and Firefox on Linux with normal browser security. Record OS version, architecture, browser version and results on the release ticket before confirming the blocking **desktop-review** job.
 
-The five native jobs must all pass. The final job lists the checksums of their archives and the exact Core commit. Candidate archives remain attached to the native jobs for maintainer publication. A development build or a previous container release does not establish desktop release acceptance.
+Use a release tag matching the version in `pyproject.toml`, for example `v0.2.0` for version `0.2.0`. After the five native jobs pass and a maintainer approves **desktop-review**, **accepted-archives** uploads the five reviewed archives, `SHA256SUMS` and `CORE-REVISION` to the project's versioned Generic Package Registry. It verifies that each file downloads anonymously with the expected checksum and creates the GitLab Release with clearly named links. Retrying with identical files reuses them. A different file at the same version stops publication.
+
+Keep released package versions and their release entries available to the public. These downloads are independent of CI job artifact expiry. Ordinary branch pipelines produce temporary candidates for review. Users go directly to [GitLab Releases](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases).

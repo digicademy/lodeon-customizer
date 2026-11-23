@@ -58,6 +58,7 @@ desktop-review:
 accepted-archives:
   stage: acceptance
   tags: [linux-x86_64]
+  resource_group: desktop-publication
   needs:
     - core-source
     - native-app
@@ -71,7 +72,7 @@ accepted-archives:
         test -f dist/LODEON-Customizer-*-"$target"
       done
       cp build/core/REVISION dist/CORE-REVISION
-      cd dist
-      sha256sum LODEON-Customizer-* > SHA256SUMS
+      (cd dist && sha256sum LODEON-Customizer-* > SHA256SUMS)
+      if [ -n "${CI_COMMIT_TAG:-}" ]; then python release/publish.py; fi
   artifacts:
     paths: [dist/SHA256SUMS, dist/CORE-REVISION]
