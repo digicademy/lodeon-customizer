@@ -13,6 +13,7 @@ class Grant:
     profiles: frozenset
     ends: float
     connection: str = field(default_factory=lambda: uuid4().hex)
+    instance_models: dict | None = None
     used: set = field(default_factory=set)
     cancelled: set = field(default_factory=set)
 
@@ -49,6 +50,17 @@ class Grants:
             if not grant or grant.ends <= time.monotonic() or grant.origin != origin:
                 raise ValueError("denied")
             return grant
+
+    def share_models(self, origin, token, models):
+        with self.lock:
+            self.get(origin, token).instance_models = models
+
+    def visible_models(self):
+        with self.lock:
+            for grant in reversed(self.active.values()):
+                if grant.ends > time.monotonic() and grant.instance_models is not None:
+                    return grant.instance_models
+        return {}
 
     def revoke(self, connection):
         with self.lock:

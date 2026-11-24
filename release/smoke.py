@@ -1,6 +1,6 @@
 """Exercise the extracted app, personal files and a real LiteLLM HTTP request."""
 
-import hashlib
+import re
 import html
 import json
 import os
@@ -118,7 +118,7 @@ def check_archive(archive, scratch, system):
             subprocess.run([exe, "--no-browser"], cwd=home, env=env, timeout=15, check=True)
             identity = (data / ".service-id").read_bytes()
             request("POST", "/v1/connect", origin=ORIGIN, status=403)
-            form = {"instance": ORIGIN + "/lodeon/", "revision": hashlib.sha256(config.read_bytes()).hexdigest()}
+            form = {"instance": ORIGIN + "/lodeon/", "revision": re.search(r'name="revision" value="([a-f0-9]+)"', request("GET", "/"))[1]}
             request("POST", "/instance", form, origin=ORIGIN, form=True, status=403)
             request("POST", "/instance", form, origin=LOCAL, form=True)
             request("POST", "/v1/connect", origin="https://other.example.org", status=403)

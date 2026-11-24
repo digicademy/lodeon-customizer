@@ -127,9 +127,13 @@ def save_instance(path, address, revision, check):
     return update_settings(path, revision, check, lambda settings: settings.update(instance=address))
 
 
+def config_revision(path, raw):
+    return hashlib.sha256(os.fsencode(path.resolve()) + b"\0" + raw).hexdigest()
+
+
 def update_settings(path, revision, check, edit):
     original = path.read_bytes()
-    if hashlib.sha256(original).hexdigest() != revision:
+    if config_revision(path, original) != revision:
         raise ConfigError("config_changed")
     yaml = YAML()
     yaml.preserve_quotes = True

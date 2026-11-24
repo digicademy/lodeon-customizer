@@ -1,6 +1,5 @@
 """Local settings and responses for the desktop app's own loopback origin."""
 
-import hashlib
 import sys
 from base64 import b64encode
 from functools import cache
@@ -12,7 +11,10 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 import yaml
 
-from .configuration import ConfigError, read_model_environment, resource_paths, save_instance
+from .configuration import ConfigError, config_revision, read_model_environment, resource_paths, save_instance
+from . import broker_form
+from .instance_form import render_instance, save_sampling
+from .folders import open_folder, pick_folder
 from .model_form import FIELDS, FormError, PROVIDERS, key_revision, render_fields, save_key, save_model, values_for
 from .profiles import LocalModels
 
@@ -73,10 +75,11 @@ def model_list(contents):
             broker = section == "modelBrokers"
             kind = "Broker" if broker else PROVIDERS.get(item.get("provider"), "")
             meta = kind + (" · Default" if assistant.get("defaultModel") == key else "")
-            edit = "" if broker else f'<a href="/models/edit/{quote(key, safe="")}" aria-label="Edit {label}">Edit model</a>'
+            group, noun = ("brokers", "broker") if broker else ("models", "model")
+            edit = f'<a href="/{group}/edit/{quote(key, safe="")}" aria-label="Edit {label}">Edit {noun}</a>'
             cards.append(f'<div class="model model-entry"><div><div class="model-title">{label}</div>'
                          f'<small>{escape(meta)}</small></div>{edit}</div>')
-    return "".join(cards) or '<div class="panel-body"><p>No personal models yet. Choose <strong>Add model</strong> to configure your first one.</p></div>'
+    return "".join(cards) or '<div class="panel-body"><p>No local models or brokers configured.</p></div>'
 
 
 def notice_html(message, status):
@@ -89,7 +92,7 @@ def notice_html(message, status):
 def model_page(handler, key="", *, message="", status=200, submitted=None):
     config = handler.server.data / "config.yml"
     raw = config.read_bytes()
-    revision = hashlib.sha256(raw).hexdigest()
+    revision = config_revision(config, raw)
     try:
         assistant = yaml.safe_load(raw).get("assistant", {})
         profiles = assistant.get("modelProfiles", {})
@@ -130,8 +133,63 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
     return send_html(handler, layout(content, running=True), status)
 
 
+def editor_page(handler, title, form, message="", status=200):
+    content = (f'<a class="back" href="/">← LODEON Customizer</a><header class="page-title"><h1>{escape(title)}</h1></header>'
+               + notice_html(message, status) + form)
+    return send_html(handler, layout(content, running=True), status)
+
+
+def broker_page(handler, key="", *, message="", status=200, submitted=None):
+    server = handler.server
+    config = server.data / "config.yml"
+    raw = config.read_bytes()
+    revision = config_revision(config, raw)
+    assistant = yaml.safe_load(raw).get("assistant", {})
+    broker = assistant.get("modelBrokers", {}).get(key, {})
+    if key and not broker:
+        return page(handler, "This broker no longer exists.", 404)
+    fields = submitted or broker_form.values_for(key, broker, assistant.get("defaultModel"))
+    choices = {k: m["label"] for k, m in server.grants.visible_models().items()}
+    choices.update({k: m["label"] for k, m in assistant.get("modelProfiles", {}).items()})
+    form = broker_form.render_broker(fields, choices, revision)
+    if key and any(task["strategy"] == "routed" for task in broker["tasks"].values()):
+        try:
+            prompt = broker["router"]["prompt"]
+            _, _, _, content, stamp = broker_form.prompt_files(config, prompt)
+            if not content.strip() and status == 200:
+                message = "Save a routing prompt below before using this broker."
+            variables = ", ".join("{{" + v + "}}" for v in sorted(broker_form.BROKER_ROUTING_VARIABLES))
+            form += f'''<form class="panel profile-editor" method="post" action="/broker-prompt">
+<h2>Routing prompt</h2><label>{escape(prompt)}<textarea required rows="8" name="content">{escape(content)}</textarea></label>
+<p class="hint">Available variables: {escape(variables)}</p>
+<input type="hidden" name="profile" value="{escape(key, quote=True)}"><input type="hidden" name="revision" value="{revision}">
+<input type="hidden" name="promptRevision" value="{stamp}"><footer><button class="primary">Save prompt</button></footer></form>'''
+        except (ValueError, OSError) as error:
+            message = str(error) if isinstance(error, FormError) else "Check the local routing prompt files."
+            status = 400
+    return editor_page(handler, "Edit broker" if key else "Add broker", form, message, status)
+
+
+def instance_page(handler, key, message="", status=200):
+    server = handler.server
+    model = server.grants.visible_models().get(key)
+    if not model:
+        return page(handler, "Reconnect your LODEON tab to load its available models.", 409)
+    config = server.data / "config.yml"
+    form = render_instance(model, server.models.instance_settings.get(key, {}), config_revision(config, config.read_bytes()))
+    return editor_page(handler, model["label"], form, message, status)
+
+
 def model_get(handler):
     url = urlsplit(handler.path)
+    if url.path == "/brokers/new":
+        return broker_page(handler)
+    if url.path.startswith("/brokers/edit/"):
+        return broker_page(handler, url.path.removeprefix("/brokers/edit/"),
+                           message="Saved. Reconnect your LODEON tab to use these changes." if url.query == "saved" else "")
+    if url.path.startswith("/instance-models/edit/"):
+        return instance_page(handler, url.path.removeprefix("/instance-models/edit/"),
+                             "Settings saved. Reconnect your LODEON tab to apply them." if url.query == "saved" else "")
     if url.path == "/models/new":
         return model_page(handler)
     if url.path.startswith("/models/edit/"):
@@ -167,17 +225,32 @@ def page(handler, message="", status=200):
         message, status = "Check the structure of the local config.yml file.", 400
     address = contents.get("instance", "")
     address = address if isinstance(address, str) else ""
-    revision = hashlib.sha256(raw).hexdigest()
-    notice = notice_html(message, status)
+    revision = config_revision(config, raw)
+    notice = notice_html(message or handler.server.folder_warning, 409 if handler.server.folder_warning else status)
     state = ('<span class="state saved">Instance saved</span>' if address
              else '<span class="state">No instance saved</span>')
+    installed = handler.server.grants.visible_models()
+    remote = "".join(
+        f'<div class="model model-entry"><div><div class="model-title">{escape(item["label"])}</div>'
+        f'<small>Instance · {escape(PROVIDERS[item["provider"]])}</small></div>'
+        f'<a href="/instance-models/edit/{quote(key, safe="")}">Edit settings</a></div>'
+        for key, item in sorted(installed.items(), key=lambda pair: pair[1]["label"].casefold())
+    )
+    folder_form = template("folder.html").substitute(
+        folder=escape(str(config.parent), quote=True) if not handler.server.folder_warning else "",
+        revision=revision)
+    if handler.server.folder_warning:
+        content = ('<header class="page-title"><h1>LODEON Customizer</h1></header>' + notice +
+                   '<section class="panel"><div class="panel-head"><h2>Settings folder</h2></div>' + folder_form + '</section>')
+        return send_html(handler, layout(content, running=True), status)
     content = template("settings.html").substitute(
         link_icon=icon("M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2 M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"),
         models_icon=icon("m12 3 9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5"),
         folder_icon=icon("M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"),
         lock_icon=icon("M8 10V7a4 4 0 0 1 8 0v3 M6 10h12v10H6z"),
         address=escape(address, quote=True), notice=notice, instance_state=state, revision=revision,
-        models=models_html, config_path=escape(str(config)),
+        instance_models=remote or '<p class="panel-body">Connect your LODEON tab, then refresh this list to see its available models.</p>',
+        models=models_html, config_path=escape(str(config)), folder_form=folder_form,
         keys_path=escape(str(config.parent / "models" / ".env")),
     )
     send_html(handler, layout(content, running=True), status)
@@ -194,51 +267,113 @@ def local_action(handler):
             handler._reply(200, {"status": "stopped"})
         Thread(target=server.shutdown, daemon=True).start()
         return
+    if server.folder_warning and handler.path != "/folder":
+        return page(handler, status=409)
     if (handler.headers.get_content_type() != "application/x-www-form-urlencoded"
         or "Transfer-Encoding" in handler.headers or len(handler.headers.get_all("Content-Length", [])) != 1):
         raise ValueError("invalid_request")
     size = int(handler.headers["Content-Length"])
     is_model = handler.path == "/model"
-    if not 0 < size <= (65536 if is_model else 8192):
+    if not 0 < size <= (65536 if handler.path in {"/model", "/broker", "/broker-prompt"} else 8192):
         raise ValueError("invalid_request")
-    expected = {"/instance": {"instance", "revision"}, "/model": FIELDS,
+    expected = {"/broker": broker_form.FIELDS, "/broker-prompt": {"profile", "revision", "promptRevision", "content"},
+                "/instance-model": {"profile", "revision", "temperature", "topP"}, "/folder": {"folder", "method", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
                 "/model-key": {"profile", "revision", "keyRevision", "secret"}}[handler.path]
     parsed = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
-                      keep_blank_values=True, max_num_fields=len(expected))
-    required = expected - {"default"} if is_model else expected
+                      keep_blank_values=True, max_num_fields=None if handler.path == "/broker" else len(expected))
+    if handler.path == "/broker":
+        # The field names are public profile IDs. The resolver validates every submitted member.
+        members = []
+        for field in list(parsed):
+            prefix, _, key = field.partition(".")
+            if prefix == "member" and broker_form.ID.fullmatch(key):
+                if parsed.pop(field) != ["on"]:
+                    raise ValueError("invalid_request")
+                hint = parsed.get("hint." + key, [""])[0].strip()
+                if "\r" in hint or "\n" in hint:
+                    raise ValueError("invalid_request")
+                members.append(f"{key} | {hint}")
+        for field in list(parsed):
+            if field.startswith("hint.") and broker_form.ID.fullmatch(field[5:]) and len(parsed[field]) == 1:
+                del parsed[field]
+        if members and len(parsed.get("members", [])) == 1:
+            parsed["members"] = ["\n".join([*members, parsed["members"][0]])]
+    required = expected - {"default"}
     if not required <= parsed.keys() <= expected or any(len(v) != 1 for v in parsed.values()):
         raise ValueError("invalid_request")
     fields = {name: values[0] for name, values in parsed.items()}
-    config = server.data / "config.yml"
+    if handler.path == "/folder" and fields["method"] == "browse":
+        try:
+            fields["folder"] = pick_folder()
+        except (OSError, ConfigError):
+            return page(handler, "Enter the absolute folder path below.", 400)
+        if not fields["folder"]:
+            return page(handler)
     with server.settings_lock:
+        config = server.data / "config.yml"
         def check(path):
             return LocalModels.load(path, server.identity)
 
         try:
+            if handler.path == "/folder":
+                if config_revision(config, config.read_bytes()) != fields["revision"]:
+                    raise ConfigError("config_changed")
+                open_folder(server, fields["folder"])
+                return page(handler, "Settings folder opened. Reconnect your LODEON tab.")
             if handler.path == "/instance":
                 server.set_models(save_instance(config, fields["instance"].strip(), fields["revision"], check))
                 return page(handler, "Instance saved.")
-            if is_model:
+            if handler.path == "/instance-model":
+                key = fields["profile"]
+                if key not in server.grants.visible_models():
+                    return page(handler, "Reconnect your LODEON tab to load its available models.", 409)
+                saved = save_sampling(config, fields, server.models, check)
+                server.models.instance_settings = saved.instance_settings
+                location = f"/instance-models/edit/{quote(key, safe='')}?saved"
+            elif handler.path == "/broker":
+                key, models = broker_form.save_broker(config, fields, check)
+                server.set_models(models)
+                location = f"/brokers/edit/{quote(key, safe='')}?saved"
+            elif handler.path == "/broker-prompt":
+                key = fields["profile"]
+                broker = server.models.brokers.get(key)
+                if (not broker or config_revision(config, config.read_bytes()) != fields["revision"]
+                        or not any(t["strategy"] == "routed" for t in broker["tasks"].values())):
+                    raise ConfigError("config_changed")
+                broker_form.save_prompt(config, broker["router"]["prompt"], fields["content"], fields["promptRevision"])
+                server.set_models(check(config))
+                location = f"/brokers/edit/{quote(key, safe='')}?saved"
+            elif is_model:
                 key, models = save_model(config, fields, check)
                 server.set_models(models)
+                location = f"/models/edit/{quote(key, safe='')}?saved=model"
             else:
                 key = fields["profile"]
                 save_key(config, fields)
+                location = f"/models/edit/{quote(key, safe='')}?saved=key"
         except (ValueError, OSError) as error:
             if isinstance(error, ConfigError) and str(error) == "config_changed":
                 return page(handler, "The configuration changed. Reopen the model or instance settings before saving again.", 409)
+            if handler.path == "/folder":
+                message = ("Enter the absolute folder path below." if str(error) == "folder_picker_unavailable"
+                           else "Choose an accessible folder containing valid Customizer settings, or a folder for new settings.")
+                return page(handler, message, 400)
             if isinstance(error, ConfigError) and str(error) == "invalid_instance":
                 return page(handler, "Enter an HTTPS instance URL, or use HTTP on localhost, "
                             "127.0.0.1 or [::1]. Include the deployment path and omit credentials, "
                             "query parameters and fragments.", 400)
             message = str(error) if isinstance(error, FormError) else "Check the submitted settings and the local configuration."
+            if handler.path == "/broker":
+                return broker_page(handler, fields["original"], message=message, status=400, submitted=fields)
+            if handler.path == "/instance-model":
+                return instance_page(handler, fields["profile"], message, 400)
             if is_model:
                 return model_page(handler, fields["original"], message=message, status=400, submitted=fields)
             if handler.path == "/model-key":
                 return model_page(handler, fields["profile"], message=message, status=400)
             return page(handler, message, 400)
     handler.send_response(303)
-    handler.send_header("Location", f"/models/edit/{quote(key, safe='')}?saved={'model' if is_model else 'key'}")
+    handler.send_header("Location", location)
     handler.send_header("Cache-Control", "no-store")
     handler.send_header("Content-Length", "0")
     handler.end_headers()

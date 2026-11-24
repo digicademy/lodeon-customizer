@@ -15,7 +15,7 @@ from lodeon_model_runtime.profiles import (
     ModelProfileContractError, PROVIDER_CAPABILITIES, validate_model_profile_contract,
 )
 
-from .configuration import ConfigError, read_model_environment, update_settings
+from .configuration import ConfigError, config_revision, read_model_environment, update_settings
 
 
 class FormError(ValueError):
@@ -187,7 +187,7 @@ def key_revision(path):
 
 def save_key(config, fields):
     raw = config.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != fields["revision"]:
+    if config_revision(config, raw) != fields["revision"]:
         raise ConfigError("config_changed")
     profile = yaml.safe_load(raw)["assistant"]["modelProfiles"].get(fields["profile"], {})
     variable = profile.get("apiKeyEnv")

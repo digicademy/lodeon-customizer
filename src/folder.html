@@ -1,0 +1,7 @@
+    <form class="panel-body" method="post" action="/folder">
+      <label>Settings folder<input name="folder" value="$folder"></label>
+      <input type="hidden" name="revision" value="$revision">
+      <div class="input-row"><button name="method" value="browse">Choose folder…</button>
+      <button name="method" value="open">Open folder</button></div>
+      <p class="hint">Open a folder containing config.yml to load its settings. A folder without that file starts with an empty configuration.</p>
+    </form>

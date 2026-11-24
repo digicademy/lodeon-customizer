@@ -43,6 +43,7 @@ class LocalModels:
     """Own a private snapshot for the lifetime of one configuration revision."""
 
     def __init__(self, service_id, assistant, env_path, environment, instance=""):
+        self.instance_settings = {}
         self.instance = instance
         self.origin = instance_origin(instance) if instance else None
         self._service_id = str(service_id)
@@ -63,6 +64,7 @@ class LocalModels:
             for profile_id, profile in assistant["modelProfiles"].items():
                 validate_model_profile_contract(profile_id, profile)
             models = cls(service_id, assistant, path.parent / "models" / ".env", environment, config.get("instance", ""))
+            models.instance_settings = config.get("instanceModelSettings", {}).get(models.instance, {})
             models._routing_prompts = load_routing_prompts(path.parent, assistant["promptRegistryFile"], models.brokers)
             return models
         except (OSError, ValueError, ConfigResolverError, RecursionError):

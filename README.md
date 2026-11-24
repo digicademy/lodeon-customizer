@@ -23,7 +23,7 @@ If your browser displays a development download as text, use **Save link as** on
 1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **Setup and user guide** opens these instructions. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
 2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
 3. The app opens a **local settings page** in your default browser. Copy the instance URL from your LODEON tab, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
-4. On first launch the model list is empty. Choose **Personal models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
+4. On first launch the model list is empty. Choose **Models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
 5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
 | Your computer | Platform | Open after extraction |
@@ -38,18 +38,41 @@ On a Mac, **Apple menu → About This Mac** identifies the chip.
 
 ## Configure a personal model
 
-1. Choose **Personal models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
+1. Choose **Models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
 2. Select **Use as my default model** if you want LODEON to select this profile when you connect. Under **Advanced settings** you can set temperature, top P, reasoning effort, prompt caching, limits, costs and Ollama keep-alive. The Core runtime validates the selected provider’s settings.
 3. Choose **Save model**. For OpenAI and Anthropic, the edit page now offers a password field. Enter the **Provider API key** and choose **Save API key**. For a keyed OpenAI-compatible endpoint, select **Use a personal API key** when setting up the profile. A saved key can be replaced in this field and is never displayed.
 4. In LODEON, connect or reconnect the tab to refresh the catalog. Use **Edit model** in the Customizer to change a profile later.
 
-For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. **Local files** shows its location and the separate `models/.env` file used for provider keys. Brokers and their routing prompts are configured in the local files.
+For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. **Local files** shows its location and the separate `models/.env` file used for provider keys.
+
+## Choose or reopen a settings folder
+
+Under **Local files**, choose **Choose folder…** to browse, or enter an absolute path and choose **Open folder**. Select the directory that directly contains `config.yml`. The app loads that directory’s models, brokers, routing prompts, service identity and `models/.env`. Choosing an empty directory starts a separate configuration. Reopen the original directory to return to it. The app remembers your selection when you quit and reopen it. If a selected drive is unavailable, the app asks you to open a folder before it accepts model connections.
+
+If you choose a Git working tree for your YAML and prompts, keep `models/.env` and the machine-specific `.service-id` out of version control. The Customizer only opens and saves local files.
+
+On first launch the app uses the following default folder.
 
 | System | Personal files |
 | --- | --- |
 | Windows | `%LOCALAPPDATA%\LODEON-Customizer\data\` |
 | macOS | `~/Library/Application Support/LODEON-Customizer/data/` |
 | Linux | `$XDG_DATA_HOME/LODEON-Customizer/data/`, defaulting to `~/.local/share/LODEON-Customizer/data/` |
+
+## Customize an instance model
+
+1. Save the instance address and connect from **Settings → Connect personal models** in that LODEON tab.
+2. Open **Models → Instance models → Refresh list** in the Customizer. Choose **Edit settings** beside a model.
+3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**, then disconnect and reconnect the LODEON tab.
+4. Select the same instance model in LODEON. **Model information** shows the effective values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
+
+The Customizer saves these overrides in `instanceModelSettings` in your local `config.yml`, keyed by the saved instance URL and model ID. Projects retain the ordinary model ID. A changed list of available instance models requires a new connection.
+
+## Configure a broker
+
+Choose **Models → Add broker**. Give it a name and a routing objective. Select the local and connected instance models under **Broker members** and describe what each one does well. You can also enter an offline member’s ID manually. Choose the router model. Under **Task routing**, configure the worker for fixed tasks or the ordered candidates for routed tasks. You can enter ordered fallback IDs for each task.
+
+Choose **Save broker**. If any task uses routing, enter your Markdown in **Routing prompt** on the broker’s edit page, then choose **Save prompt**. For example, `Choose one of {{candidates}} for {{task}} given {{question}}. Return the model ID.` The form saves the registry entry and Markdown in the selected folder. A fixed-only broker is ready after saving its policy. Reconnect your LODEON tab and select the broker. Use **Edit broker** to revisit these settings.
 
 ## Reconnect, disconnect or quit
 
@@ -100,7 +123,7 @@ uv run --no-project --python 3.12 python vendor/lodeon-customizer/release/build.
 open vendor/lodeon-customizer/dist/local/LODEON-Customizer.app
 ```
 
-Each local development build puts the tested app beside its archive and replaces the same-named copy in that output folder. Your personal settings live in the separate OS data folder. Both Intel and Apple Silicon use the same command.
+Each local development build puts the tested app beside its archive and replaces the same-named copy in that output folder. Your personal settings live in the selected settings folder. Both Intel and Apple Silicon use the same command.
 
 With native Python 3.12 you can also run the build script with `python3.12` or, on Windows, `py -3.12`. On Windows and Linux, open the executable inside the output folder’s `LODEON-Customizer` directory. To test with the Assistant, enable `assistant.personalModels.enabled` on your instance, save its address in the app, then choose **Settings → Connect personal models → Connect** in that LODEON tab.
 

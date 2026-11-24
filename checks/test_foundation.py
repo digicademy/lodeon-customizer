@@ -1,6 +1,5 @@
 """Verify the wheel consumer and the public boundary using only synthetic credentials."""
 
-import hashlib
 import json
 import tempfile
 import unittest
@@ -11,7 +10,7 @@ from uuid import UUID
 
 import yaml
 from lodeon_model_runtime.wire import effective_limits, validate_payload
-from lodeon_customizer.configuration import data_directory
+from lodeon_customizer.configuration import config_revision, data_directory
 from lodeon_customizer.model_form import FIELDS, FormError, key_revision, save_key, save_model, values_for
 from lodeon_customizer.execution import execute_model
 from lodeon_customizer.profiles import ConfigError, LocalModels
@@ -97,7 +96,7 @@ class FoundationTest(unittest.TestCase):
         original = yaml.safe_load(path.read_bytes())["assistant"]["modelProfiles"][key]
         fields = dict.fromkeys(FIELDS, "")
         fields.update({k: str(v) for k, v in values_for(key, original, key).items()})
-        fields.update(revision=hashlib.sha256(path.read_bytes()).hexdigest(), temperature="0.65")
+        fields.update(revision=config_revision(path, path.read_bytes()), temperature="0.65")
         def check(candidate):
             return LocalModels.load(candidate, SERVICE)
 
@@ -108,7 +107,7 @@ class FoundationTest(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "config_changed"):
             save_model(path, fields, check)
         self.assertEqual(saved, path.read_bytes())
-        fields.update(revision=hashlib.sha256(saved).hexdigest(), temperature="")
+        fields.update(revision=config_revision(path, saved), temperature="")
         _, models = save_model(path, fields, check)
         self.assertNotIn("temperature", models.catalog(models.profile_ids)["models"][0]["generation"])
         stored = yaml.safe_load(path.read_bytes())["assistant"]["modelProfiles"][key]
@@ -120,11 +119,11 @@ class FoundationTest(unittest.TestCase):
         path.write_text("assistant: {modelProfiles: {}}\n")
         form = dict.fromkeys(FIELDS, "")
         form.update(values_for("", {}, None), label="Research model", provider="anthropic", model="test",
-                    topP="0.8", default="on", revision=hashlib.sha256(path.read_bytes()).hexdigest())
+                    topP="0.8", default="on", revision=config_revision(path, path.read_bytes()))
         key, models = save_model(path, form, lambda candidate: LocalModels.load(candidate, SERVICE))
         self.assertEqual(models.default_model, key)
         content = path.read_bytes()
-        form["revision"] = hashlib.sha256(content).hexdigest()
+        form["revision"] = config_revision(path, content)
         with self.assertRaises(FormError):
             save_model(path, form, lambda candidate: LocalModels.load(candidate, SERVICE))
         self.assertEqual(path.read_bytes(), content)

@@ -82,10 +82,10 @@ here, not in a second model-only repository.
 - The desktop settings use the Core wordmark and Editor palette in light and
   dark appearances. The native filename is `LODEON-Customizer` with the platform
   extension. A local development build replaces its app in the output folder
-  after checking the archive. The OS data directory ends in `LODEON-Customizer/data`.
+  after checking the archive. The default data directory ends in `LODEON-Customizer/data`.
 - Retain a regular Package manifest and root `config.yml`. On first launch
   create the per-user `data/config.yml` and stable service identity in the
-  OS user-data directory. Zero models is valid. Restarts and replacement of
+  OS user-data directory. The owner can select a different folder or reopen an existing configuration. Zero models is valid. Restarts and replacement of
   the app preserve personal files.
 - Resolve `apiKeyEnv` from `data/models/.env` at invocation. The packaged
   defaults contain only public configuration. Build, sign and test each
@@ -98,7 +98,7 @@ here, not in a second model-only repository.
   `data/config.yml`, and the Core Package resolver and schema. The local forms save the instance URL and create or edit personal model
   profiles, including the default selection, provider, generation, caching,
   limits and costs. A separate write-only form saves provider keys to
-  `data/models/.env`. Brokers and routing prompts are edited in the local files. A save must retain
+  `data/models/.env`. Forms also edit canonical broker policies and routed Markdown prompts. A save must retain
   unrelated YAML settings and detect intervening file edits before replacing
   them. Invalid edits leave the last valid configuration available. Rotating
   a key under the same name updates only the model credentials file. The UI
@@ -513,3 +513,8 @@ Preserve the existing Core Model Task, Query Handoff, mandatory Answer Stage,
 Configuration and Access Control contracts except for the explicitly agreed
 generic extensions. Their canonical records remain in lodeon-roadmap; this
 repository does not duplicate them or introduce a second implementation plan.
+
+
+### Desktop review additions
+
+Open a new folder, save a model and a mixed broker, switch back to an existing folder, then restart and verify the selected path. In a connected tab, load the available instance models into the desktop list. Save a personal temperature or top P, reconnect and inspect **Model information**. Verify direct hosted execution and a personal broker with a hosted worker. Clear the fields to inherit instance defaults again. Source-level acceptance on macOS covered selecting a hosted model, saving a personal sampling value, composing a broker, saving its prompt and restoring a settings folder in Brave at desktop and mobile widths. The loopback tests also cover restarting with a saved folder and with that folder unavailable. Core verified a direct installed provider call and a hosted worker in a mixed broker with per-operation sampling. Native archive and platform file-picker review remain part of final desktop acceptance.

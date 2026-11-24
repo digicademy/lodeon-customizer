@@ -117,3 +117,12 @@ textarea { resize: vertical; }
 .profile-editor footer { display: flex; gap: 1rem; align-items: center; margin-top: 1.2rem; }
 .key-entry { margin-bottom: 1rem; }
 @media(max-width: 600px) { .fields { grid-template-columns: minmax(0,1fr); } }
+
+.actions { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.panel-head h3 { margin: 0; font-size: 1rem; }
+.profile-editor + .profile-editor { margin-top: 1rem; }
+
+.profile-editor .broker-members { margin-top: 1.5rem; }
+.member-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: .75rem; padding: .5rem 0; }
+.member-row .check { margin: 0; flex-wrap: wrap; }
+@media (max-width: 600px) { .member-row { grid-template-columns: minmax(0, 1fr); } }

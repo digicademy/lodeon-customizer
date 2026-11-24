@@ -1,17 +1,19 @@
 """Launch the standalone Customizer on this computer's loopback interface."""
 
+from contextlib import ExitStack
 import argparse
 import errno
+import os
 import sys
 import webbrowser
 from http.client import HTTPConnection
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
-from .configuration import ConfigError, data_directory, initialize
+from .configuration import ConfigError, data_directory
+from .folders import load_folder
 from .desktop import message_page
 from .http_service import ModelService
-from .profiles import LocalModels
 
 
 def main() -> int:
@@ -21,10 +23,26 @@ def main() -> int:
     args = parser.parse_args()
     url = "http://127.0.0.1:8765/"
     try:
-        data = args.data if args.data is not None else data_directory()
-        identity = initialize(data)
-        models = LocalModels.load(data / "config.yml", identity)
-        with ModelService(("127.0.0.1", 8765), models, data=data, identity=identity) as server:
+        with ExitStack() as stack:
+            default = data_directory()
+            preference = default.parent / "settings-folder"
+            data = args.data or default
+            warning = ""
+            if args.data is None and preference.is_file():
+                try:
+                    data = Path(os.fsdecode(preference.read_bytes()))
+                    if not data.is_absolute() or not (data / "config.yml").is_file():
+                        raise ConfigError("folder_unavailable")
+                    identity, models = load_folder(data)
+                except (OSError, ValueError):
+                    warning = "The selected settings folder is unavailable. Open a settings folder to continue."
+                    data = Path(stack.enter_context(TemporaryDirectory()))
+                    identity, models = load_folder(data)
+            else:
+                identity, models = load_folder(data)
+            server = stack.enter_context(ModelService(("127.0.0.1", 8765), models, data=data, identity=identity))
+            server.folder_preference = None if args.data else preference
+            server.folder_warning = warning
             if not args.no_browser:
                 webbrowser.open(url)
             server.serve_forever()

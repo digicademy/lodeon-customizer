@@ -10,10 +10,12 @@ from lodeon_model_runtime.wire import validate_payload
 from .desktop import local_action, model_get, page
 from .execution import execute_model
 from .grants import Grants
+from .instance_form import read_catalog
 
 
 ROUTES = {
     "connect": "POST",
+    "instance-models": "POST",
     "catalog": "GET",
     "targets": "GET",
     "broker": "POST",
@@ -21,7 +23,7 @@ ROUTES = {
     "cancel": "POST",
     "disconnect": "POST",
 }
-BODY = {"broker", "invoke", "cancel"}
+BODY = {"instance-models", "broker", "invoke", "cancel"}
 STATUS = {
     "denied": 403,
     "invalid_request": 400,
@@ -98,6 +100,8 @@ class ModelService(ThreadingHTTPServer):
 
     def __init__(self, address, models, *, data=None, identity=None):
         self.data = data
+        self.folder_preference = None
+        self.folder_warning = ""
         self.identity = identity
         self.settings_lock = RLock()
         self.set_models(models)
@@ -158,11 +162,12 @@ class ModelHandler(BaseHTTPRequestHandler):
             ):
                 raise ValueError("denied")
             if self.command == "GET" and "Origin" not in self.headers:
-                if self.path == "/":
-                    return page(self)
-                if self.path.startswith("/models/"):
-                    return model_get(self)
-            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/quit"):
+                with self.server.settings_lock:
+                    if self.path == "/":
+                        return page(self)
+                    if self.path.startswith(("/models/", "/brokers/", "/instance-models/")):
+                        return model_get(self)
+            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/folder", "/quit", "/broker", "/broker-prompt", "/instance-model"):
                 return local_action(self)
             with self.server.settings_lock:
                 grants, models = self.server.grants, self.server.models
@@ -209,7 +214,11 @@ class ModelHandler(BaseHTTPRequestHandler):
             token = auth[7:]
             grant = grants.get(origin, token)
             body = self._body(route)
-            if route == "catalog":
+            if route == "instance-models":
+                installed = read_catalog(body)
+                grants.share_models(origin, token, installed)
+                result = {k: v for k, v in models.instance_settings.items() if k in installed and v}
+            elif route == "catalog":
                 result = models.catalog(grant.profiles.intersection(models.profile_ids))
             elif route == "targets":
                 result = models.targets(grant.profiles)

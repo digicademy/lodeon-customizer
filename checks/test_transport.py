@@ -1,6 +1,5 @@
 """Exercise the production loopback service with a local grant and one provider fixture."""
 
-import hashlib
 import json
 import tempfile
 import threading
@@ -15,6 +14,8 @@ from uuid import uuid4
 import yaml
 from resolver.resource_schemas import BROKER_ROUTING_VARIABLES
 
+from lodeon_customizer.configuration import config_revision
+from lodeon_customizer import broker_form, cli
 from lodeon_customizer.http_service import ModelService
 from lodeon_customizer.profiles import LocalModels
 
@@ -33,13 +34,18 @@ class TransportTest(unittest.TestCase):
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
 
-        def request(method, route, *, origin=None, form=None):
+        def request(method, route, *, origin=None, form=None, payload=None, token=None):
             connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
             headers = {"Origin": origin} if origin else {}
+            body = json.dumps(payload) if payload is not None else None
+            if token:
+                headers["Authorization"] = "Bearer " + token
+            if payload is not None:
+                headers["Content-Type"] = "application/json"
             if form:
                 headers["Content-Type"] = "application/x-www-form-urlencoded"
             try:
-                connection.request(method, route, urlencode(form) if form else None, headers)
+                connection.request(method, route, urlencode(form) if form else body, headers)
                 response = connection.getresponse()
                 return response.status, response.read().decode()
             finally:
@@ -47,7 +53,7 @@ class TransportTest(unittest.TestCase):
 
         def save(address):
             return request("POST", "/instance", origin=f"http://127.0.0.1:{server.server_port}",
-                           form={"instance": address, "revision": hashlib.sha256(config.read_bytes()).hexdigest()})
+                           form={"instance": address, "revision": config_revision(config, config.read_bytes())})
 
         origin = "http://localhost:7014"
         address = origin + "/lodeon/"
@@ -67,6 +73,69 @@ class TransportTest(unittest.TestCase):
         for other in ("http://localhost:7015", "http://127.0.0.1:7014", "https://localhost:7014"):
             with self.subTest(origin=other):
                 self.assertEqual(request("POST", "/v1/connect", origin=other)[0], 403)
+
+        local = f"http://127.0.0.1:{server.server_port}"
+        token = json.loads(request("POST", "/v1/connect", origin=origin)[1])["grant"]
+        shared = {"models": [{"id": "worker", "label": "Hosted model", "provider": "ollama", "sampling": {"topP": 1}}]}
+        def share(grant):
+            return request("POST", "/v1/instance-models", origin=origin, payload=shared, token=grant)
+        self.assertEqual(share(token), (200, "{}"))
+        self.assertIn("Hosted model", request("GET", "/")[1])
+        revision = lambda: config_revision(config, config.read_bytes())
+        form = {"profile": "worker", "temperature": "0", "topP": "", "revision": revision()}
+        self.assertEqual(request("POST", "/instance-model", origin=origin, form=form)[0], 403)
+        self.assertEqual(request("POST", "/instance-model", origin=local, form=form)[0], 303)
+        self.assertEqual(json.loads(share(token)[1]), {"worker": {"temperature": 0}})
+        broker = broker_form.values_for("", {}, None)
+        broker.update(label="Catalog broker", members="worker | Hosted model", objective="Choose a worker",
+                      revision=revision(), **{"query-strategy": "routed"})
+        self.assertEqual(request("POST", "/broker", origin=local, form=broker)[0], 303)
+        self.assertEqual(share(token)[0], 403)
+        prompt_page = request("GET", "/brokers/edit/catalog-broker")
+        self.assertEqual(prompt_page[0], 200, prompt_page[1][:200])
+        self.assertIn('action="/broker-prompt"', prompt_page[1])
+        *_, stamp = broker_form.prompt_files(config, "catalog-broker-routing")
+        prompt = {"profile": "catalog-broker", "revision": revision(), "promptRevision": stamp,
+                  "content": "Choose one of {{candidates}}."}
+        self.assertEqual(request("POST", "/broker-prompt", origin=local, form=prompt)[0], 303)
+        self.assertEqual(server.models.selected_broker(server.models.target("catalog-broker"), {"catalog-broker"})["routingPrompt"], prompt["content"])
+        other = data / "other folder"
+        other.mkdir()
+        server.folder_preference = data / "preference"
+        def switch(folder):
+            return request("POST", "/folder", origin=local, form={"method": "open", "folder": str(folder), "revision": config_revision(server.data / "config.yml", (server.data / "config.yml").read_bytes())})
+        self.assertEqual(switch(other)[0], 200)
+        self.assertFalse(server.models.brokers)
+        self.assertEqual(server.folder_preference.read_text(), str(other.resolve()))
+        self.assertEqual(request("POST", "/broker", origin=local, form=broker)[0], 409)
+        self.assertEqual(switch(data)[0], 200)
+        self.assertIn("catalog-broker", server.models.brokers)
+        self.assertEqual(server.models.instance_settings["worker"], {"temperature": 0})
+
+    def test_launch_remembers_folder_and_handles_an_unavailable_selection(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            selected = base / "My settings"
+            selected.mkdir()
+            (selected / "config.yml").write_text("instance: https://example.org/lodeon/\n")
+            preference = base / "settings-folder"
+            preference.write_text(str(selected))
+            observed = []
+            service = ModelService
+            def start(address, models, **args):
+                server = service(("127.0.0.1", 0), models, **args)
+                server.serve_forever = lambda: observed.append((server.data, models.instance, server.folder_warning))
+                return server
+            with (patch.object(cli, "data_directory", return_value=base / "data"),
+                  patch.object(cli, "ModelService", side_effect=start), patch("sys.argv", ["customizer", "--no-browser"])):
+                self.assertEqual(cli.main(), 0)
+                self.assertEqual(observed[-1], (selected, "https://example.org/lodeon/", ""))
+                selected.rename(base / "disconnected")
+                self.assertEqual(cli.main(), 0)
+                self.assertTrue(observed[-1][2])
+                self.assertEqual(observed[-1][1], "")
+                self.assertEqual(preference.read_text(), str(selected))
+                self.assertFalse((base / "data").exists())
 
     def test_scoped_model_and_selected_broker(self):
         tasks = {

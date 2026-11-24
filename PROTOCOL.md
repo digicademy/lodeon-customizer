@@ -41,6 +41,7 @@ instance. The existing browser evidence and its limits are in the roadmap.
 | POST `/v1/connect` | Empty request from the saved instance's origin | `200 {connectionId, grant, expiresInSeconds}` |
 | GET `/v1/catalog` | Local bearer grant | `200 {revision, models}` |
 | GET `/v1/targets` | Local bearer grant | Models, broker summaries and optional default |
+| POST `/v1/instance-models` | Grant and `{models: [{id, label, provider, sampling}]}` from the current authorized instance status | Per-model sampling overrides for those IDs. Sampling accepts only optional temperature and topP. The roster expires with its grant. |
 | POST `/v1/broker` | Grant and `{target, revision}` | Selected broker policy and member offers |
 | POST `/v1/invoke` | Grant and invocation | One terminal result envelope |
 | POST `/v1/cancel` | Grant and `{operationId, callId, connectionId}` | `204` after recording cancellation |
@@ -61,7 +62,7 @@ Tool arguments and message content follow their existing Core contracts.
 | `target = {source: "personal", serviceId, profileId}` | Local → tab → selected Core operation | Stable public service UUID generated once locally, plus the local profile's public ID. Compare the tuple, never a label. Project and chat `modelId` use Core’s existing `personal:<serviceId>:<profileId>` representation of this tuple. Reconnection verifies it. Sharing a project can disclose these public IDs. Installed target IDs retain their existing meaning. |
 | `offer = {target, label, description?, provider, generation, promptCaching, limits, cost?}` | Local → tab. The selected model's offer or the selected broker's local member offers → Core | Allowlist public configuration intentionally supplied for display or budgeting. Use the existing four provider IDs and canonical nested profile fields/types. Omitted local generation/limit settings project as empty objects. Render strings as text. Native model name, endpoint, paths, env names, credentials, local access lists and raw YAML stay local. |
 | `revision, connectionId` | Local → tab → Core | Opaque catalog snapshot and per-grant connection ID. Bind both to the operation and reject changes before dispatch. A changed catalog or grant requires a new operation. |
-| `kind, knowledgeGraphProfileId, revision, connectionId` plus either `offer` or `broker` | Tab → Core | Authorize and reserve the exchange for exactly one `chat`, `probe` or `suggestions` request. Core applies its own policy and budget to all browser-supplied metadata. |
+| `kind, knowledgeGraphProfileId, revision, connectionId` plus one of `offer`, `broker`, `instance` and optional `instanceSettings` | Tab → Core | Authorize and reserve the exchange for exactly one `chat`, `probe` or `suggestions` request. Core applies its own policy and budget to all browser-supplied metadata. |
 | `operationId, operationToken, expiresInSeconds` | Core → tab | Short-lived authority for this operation only. Local receives the correlation ID on calls. Core and tab alone hold the token. |
 | `operationId, callId, connectionId, revision, target, task` | Core → tab → local | Identify one call. Use the existing Core task enum. Local checks the grant, target and revision before dispatch. |
 | `messages, tools, generation, bounds` | Core → tab → local | Exact prepared provider-neutral messages and offered function schemas (`[]` for a tool-free call). Generation allows only `temperature`, `topP`, `reasoningEffort` from the approved profile. Bounds contain positive `maxInputCharacters`, `maxOutputTokens` and `modelRequestTimeoutSeconds`. Both sides enforce their own limits. |
@@ -94,18 +95,23 @@ The existing Assistant status exposes a `personalModelsAllowed` boolean for
 this browser session independently of the installed-model count. Service
 addresses, other users' offers and local pairing state stay out of status.
 
-1. **Reserve.** `POST /operations` takes the five reservation fields above and
+1. **Reserve.** `POST /operations` accepts exactly one selection (personal offer, personal broker or installed model ID in `instance`) and
    returns `201 {operationId, operationToken, expiresInSeconds}`. Check the
    operator's opt-in `assistant.personalModels.enabled` (default false) and
    its optional `access.allowedGroups` using the existing central model
    access policy, plus the ordinary KG and operation permissions. An installed
    model is unnecessary. Bound the number, size and lifetime of reservations,
-   including anonymous requests.
+   including anonymous requests. Optional `instanceSettings` maps directly
+   accessible installed member IDs to temperature/topP patches. Direct installed
+   selection requires a nonempty patch for that model. A personal broker may
+   supply patches solely for its installed members. Each provider call rechecks
+   access and merges the patch into a request-local profile. Direct installed
+   selection completes through the ordinary HTTP response without polling loopback.
 2. **Start once.** The existing chat, probe or suggestions POST carries its
    ordinary payload and the headers `X-Lodeon-Operation-Id` and
    `X-Lodeon-Operation-Token`. Omit the installed `modelId`. Bind before
    tracing, reject a conflicting model, kind or graph, and attach the reserved
-   model offer or broker policy to that request. Keep the existing operation open for its ordinary
+   selection and authorized sampling values to that request. Keep the existing operation open for its ordinary
    final HTTP response. The gateway exposes at most one pending invocation
    per operation and waits on a condition until reply, cancellation or timeout.
 3. **Deliver once.** `POST /next` with both headers and empty body waits up
