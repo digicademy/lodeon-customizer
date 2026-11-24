@@ -1,5 +1,6 @@
 """Exercise the production loopback service with a local grant and one provider fixture."""
 
+import hashlib
 import json
 import tempfile
 import threading
@@ -8,6 +9,7 @@ from http.client import HTTPConnection
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import urlencode
 from uuid import uuid4
 
 import yaml
@@ -18,6 +20,51 @@ from lodeon_customizer.profiles import LocalModels
 
 
 class TransportTest(unittest.TestCase):
+    def test_save_local_instance_and_connect_from_its_origin(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        data = Path(directory.name)
+        config = data / "config.yml"
+        config.write_text("assistant: {modelProfiles: {}}\n", encoding="utf-8")
+        identity = uuid4()
+        server = ModelService(("127.0.0.1", 0), LocalModels.load(config, identity),
+                              data=data, identity=identity)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+
+        def request(method, route, *, origin=None, form=None):
+            connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+            headers = {"Origin": origin} if origin else {}
+            if form:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            try:
+                connection.request(method, route, urlencode(form) if form else None, headers)
+                response = connection.getresponse()
+                return response.status, response.read().decode()
+            finally:
+                connection.close()
+
+        def save(address):
+            return request("POST", "/instance", origin=f"http://127.0.0.1:{server.server_port}",
+                           form={"instance": address, "revision": hashlib.sha256(config.read_bytes()).hexdigest()})
+
+        origin = "http://localhost:7014"
+        address = origin + "/lodeon/"
+        status, html = save(address)
+        self.assertEqual(status, 200)
+        self.assertIn("Instance saved.", html)
+        self.assertEqual(yaml.safe_load(config.read_bytes())["instance"], address)
+        status, html = save("http://stories.example.org/lodeon/")
+        self.assertEqual(status, 400)
+        self.assertIn("Enter an HTTPS instance URL", html)
+        self.assertIn(f'value="{address}"', request("GET", "/")[1])
+        server.set_models(LocalModels.load(config, identity))
+        self.assertEqual(request("POST", "/v1/connect", origin=origin)[0], 200)
+        for other in ("http://localhost:7015", "http://127.0.0.1:7014", "https://localhost:7014"):
+            with self.subTest(origin=other):
+                self.assertEqual(request("POST", "/v1/connect", origin=other)[0], 403)
+
     def test_scoped_model_and_selected_broker(self):
         tasks = {
             k: {"strategy": "fixed", "model": "local", "fallbacks": ["hosted"]}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>LODEON Customizer</title>
+  <link rel="icon" href="$favicon">
+  <link rel="icon" media="(prefers-color-scheme: dark)" href="$favicon_dark">
+  <style>$css</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><picture>
+      <source media="(prefers-color-scheme: dark)" srcset="$logo_dark">
+      <img src="$logo_light" alt="LODEON" width="106" height="34">
+    </picture><span>Customizer</span></div>
+    $action
+  </header>
+  <main>$content</main>
+</body>
+</html>

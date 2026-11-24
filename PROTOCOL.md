@@ -15,8 +15,9 @@ A model connection grant cannot authorize configuration or key edits.
 
 ## Local connection
 
-The desktop app listens on `http://127.0.0.1:8765`. The user saves one HTTPS
-LODEON instance URL on the app's local settings page. A deployment path is
+The desktop app listens on `http://127.0.0.1:8765`. The user saves one
+LODEON instance URL on the app's local settings page. HTTPS is required except
+for HTTP on the exact hosts `localhost`, `127.0.0.1` and `[::1]`. A deployment path is
 retained for display. Browser permission is granted to its serialized origin
 (scheme, hostname and port), which is the boundary a browser can enforce.
 The app starts with no authorized origin. Its management forms post to `/instance`, `/model` (profile temperature)

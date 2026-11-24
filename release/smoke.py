@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlencode
 
-NAME = "LODEON Customizer"
+NAME = "LODEON-Customizer"
 LOCAL = "http://127.0.0.1:8765"
 ORIGIN = "https://stories.example.org"
 KEY = "fixture-only-desktop-secret"
@@ -87,7 +87,7 @@ def check_archive(archive, scratch, system):
                XDG_DATA_HOME=str(home / "xdg"), TOKENIZERS_PARALLELISM="false")
     data_base = {"windows": home / "local", "linux": home / "xdg",
                  "macos": home / "Library/Application Support"}[system]
-    data = data_base / NAME / "data"
+    data = data_base / "LODEON Customizer" / "data"
     config = data / "config.yml"
     proc = None
 

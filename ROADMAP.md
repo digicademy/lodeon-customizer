@@ -76,7 +76,13 @@ here, not in a second model-only repository.
 
 - Ship a self-contained native application. The user extracts the matching
   archive and opens the app. It starts a loopback listener, opens the local
-  settings page and remembers the entered HTTPS instance URL.
+  settings page and remembers the full instance URL. HTTPS is required except
+  for HTTP on `localhost`, `127.0.0.1` or `[::1]`. Connection grants match the
+  saved browser origin, including any non-default port.
+- The desktop settings use the Core wordmark and Editor palette in light and
+  dark appearances. The native filename is `LODEON-Customizer` with the platform
+  extension. A local development build replaces its app in the output folder
+  after checking the archive. Personal files retain their existing OS location.
 - Retain a regular Package manifest and root `config.yml`. On first launch
   create the per-user `data/config.yml` and stable service identity in the
   OS user-data directory. Zero models is valid. Restarts and replacement of

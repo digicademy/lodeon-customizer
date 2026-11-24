@@ -6,13 +6,13 @@ import sys
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from dotenv.parser import parse_stream
 from resolver.assembler import resolve_personal_model_configuration
 from resolver.errors import ConfigResolverError
 from resolver.product_validation import ResolvedPackageReader
+from resolver.schema_validation import personal_instance_origin
 from resolver.resource_schemas import (
     BROKER_ROUTING_VARIABLES,
     valid_broker_routing_prompt,
@@ -115,19 +115,10 @@ def load_routing_prompts(data: Path, registry_file: str, brokers: dict) -> dict[
 
 
 def instance_origin(address):
-    """Derive the browser origin from an explicitly entered HTTPS instance URL."""
-    if not isinstance(address, str) or len(address) > 2048 or any(
-        c.isspace() or ord(c) < 32 or c in "\\*" for c in address
-    ):
-        raise ConfigError("invalid_instance")
-    parsed = urlsplit(address)
-    if (parsed.scheme != "https" or not parsed.hostname or parsed.username is not None
-            or parsed.password is not None or parsed.query or parsed.fragment or "%" in parsed.netloc):
-        raise ConfigError("invalid_instance")
-    host = parsed.hostname.encode("idna").decode("ascii").lower()
-    if ":" in host:
-        host = f"[{host}]"
-    return f"https://{host}" + (f":{parsed.port}" if parsed.port not in (None, 443) else "")
+    try:
+        return personal_instance_origin(address)
+    except ConfigResolverError:
+        raise ConfigError("invalid_instance") from None
 
 
 def save_instance(path, address, revision, check):

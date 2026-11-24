@@ -1,0 +1,37 @@
+<header class="page-title">
+  <h1>Personal model settings</h1>
+  <p>Choose the LODEON instance that can use models from this computer.</p>
+</header>
+$notice
+<div class="workspace">
+  <div class="panels">
+    <section class="panel" aria-labelledby="connection-heading">
+      <div class="panel-head"><h2 id="connection-heading">$link_icon Instance connection</h2>$instance_state</div>
+      <form class="panel-body" method="post" action="/instance">
+        <label for="url">LODEON instance URL</label>
+        <div class="input-row">
+          <input id="url" name="instance" type="url" placeholder="https://stories.example.org/lodeon/"
+                 aria-describedby="url-hint" required value="$address">
+          <input type="hidden" name="revision" value="$revision">
+          <button class="primary">Save instance</button>
+        </div>
+        <p id="url-hint" class="hint">Copy the address from your LODEON tab, including its deployment path.</p>
+      </form>
+      <p class="panel-foot">Then open <strong>Settings → Connect personal models</strong> in that tab.</p>
+    </section>
+    <section class="panel" aria-labelledby="models-heading">
+      <div class="panel-head"><h2 id="models-heading">$models_icon Personal models</h2></div>
+      $models
+    </section>
+  </div>
+  <aside class="panel files" aria-labelledby="files-heading">
+    <div class="panel-head"><h2 id="files-heading">$folder_icon Local files</h2></div>
+    <dl>
+      <dt>Model configuration</dt>
+      <dd><p>Add models, brokers and your default selection here.</p><code dir="ltr">$config_path</code></dd>
+      <dt>Provider keys</dt>
+      <dd><p>Store the keys required by your providers here.</p><code dir="ltr">$keys_path</code></dd>
+    </dl>
+    <p class="panel-foot">$lock_icon <span>Provider keys stay on this computer until a model call sends one to its provider.</span></p>
+  </aside>
+</div>

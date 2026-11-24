@@ -26,6 +26,10 @@ core-source:
       cp build/checkout/LICENSE build/core/
       cp -R build/checkout/api/pyproject.toml build/checkout/api/lodeon_model_runtime build/core/api/
       cp -R build/checkout/config/config.yml build/checkout/config/resolver build/core/config/
+      mkdir -p build/core/resources
+      cp -R build/checkout/resources/branding build/core/resources/
+      mkdir -p build/core/editor/public/assets
+      cp build/checkout/editor/public/assets/apple-touch-icon.png build/checkout/editor/public/assets/favicon.ico build/core/editor/public/assets/
       echo "$sha" > build/core/REVISION
   artifacts:
     access: developer

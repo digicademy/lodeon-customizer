@@ -9,12 +9,13 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from .configuration import ConfigError, data_directory, initialize
+from .desktop import message_page
 from .http_service import ModelService
 from .profiles import LocalModels
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="LODEON Customizer")
+    parser = argparse.ArgumentParser(prog="LODEON-Customizer")
     parser.add_argument("--data", type=Path, default=data_directory())
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
@@ -47,7 +48,7 @@ def main() -> int:
             print(message, file=sys.stderr)
         if not args.no_browser:
             with NamedTemporaryFile(suffix=".html", delete=False) as notice:
-                notice.write(("<title>LODEON Customizer</title><h1>LODEON Customizer</h1><p>" + message + "</p>").encode())
+                notice.write(message_page("Customizer could not start", message).encode("utf-8"))
             webbrowser.open(Path(notice.name).as_uri())
         return 1
 

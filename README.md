@@ -22,23 +22,25 @@ If your browser displays a development download as text, use **Save link as** on
 
 1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **Setup and user guide** opens these instructions. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
 2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
-3. The app opens a **local settings page** in your default browser. Enter the HTTPS address of the LODEON instance you use, including its deployment path, and choose **Save instance**. For example, enter `https://stories.example.org/lodeon/`. This authorizes pages on that browser origin, including other paths on it.
+3. The app opens a **local settings page** in your default browser. Copy the instance URL from your LODEON tab, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
 4. On first launch the model list is empty. Add your first model in the local file shown on the settings page using [Configure a personal model](#configure-a-personal-model) below. You do this once per model.
 5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
 | Your computer | Platform | Open after extraction |
 | --- | --- | --- |
-| Windows with an Intel or AMD 64-bit processor | **Windows · x64** (ZIP) | `LODEON Customizer.exe` |
-| Mac with an Apple M-series chip | **macOS · Apple silicon** (ZIP) | `LODEON Customizer.app` |
-| Mac with an Intel processor | **macOS · Intel** (ZIP) | `LODEON Customizer.app` |
-| Linux with glibc on an Intel or AMD 64-bit processor | **Linux · x64** (tar.gz) | `LODEON Customizer` |
-| Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON Customizer` |
+| Windows with an Intel or AMD 64-bit processor | **Windows · x64** (ZIP) | `LODEON-Customizer.exe` |
+| Mac with an Apple M-series chip | **macOS · Apple silicon** (ZIP) | `LODEON-Customizer.app` |
+| Mac with an Intel processor | **macOS · Intel** (ZIP) | `LODEON-Customizer.app` |
+| Linux with glibc on an Intel or AMD 64-bit processor | **Linux · x64** (tar.gz) | `LODEON-Customizer` |
+| Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON-Customizer` |
 
 On a Mac, **Apple menu → About This Mac** identifies the chip.
 
 ## Configure a personal model
 
-The settings page shows the exact path to your personal `config.yml`. For example, to use a model already installed in Ollama on the same computer, open that file in a text editor. Keep the saved `instance` line. In a fresh configuration, replace the empty `assistant` section with the following. For an existing setup, add the profile under its existing `modelProfiles` mapping. Replace `gemma4:12b` with the exact name of your installed model.
+On the settings page, **Local files** shows the exact paths to your configuration and provider keys. **Personal models** lists configured models and brokers, marks your default and lets you edit a model's temperature. On first launch, expand **Configure an Ollama model** for an example. The page follows your system's light or dark appearance.
+
+To use a model already installed in Ollama on the same computer, open your personal `config.yml` in a text editor. Keep the saved `instance` line. In a fresh configuration, replace the empty `assistant` section with the following. For an existing setup, add the profile under its existing `modelProfiles` mapping. Replace `gemma4:12b` with the exact name of your installed model.
 
 ```yaml
 assistant:
@@ -102,15 +104,16 @@ needs no local prompt file.
 
 From the LODEON Core root, `--core .` builds against your current Core working tree, including local edits. To use a separate checkout, pass its path to `--core`. Quit any running Customizer first so its local smoke check can use port 8765.
 
-On an Apple Silicon Mac with uv and Python 3.12:
+From the Core root on macOS, build and open the verified app with
 
 ```sh
 uv run --no-project --python 3.12 python vendor/lodeon-customizer/release/build.py --core . --output vendor/lodeon-customizer/dist/local &&
-ditto -x -k vendor/lodeon-customizer/dist/local/LODEON-Customizer-dev-macos-arm64.zip vendor/lodeon-customizer/dist/local &&
-open "vendor/lodeon-customizer/dist/local/LODEON Customizer.app"
+open vendor/lodeon-customizer/dist/local/LODEON-Customizer.app
 ```
 
-With native Python 3.12, you can also invoke the same script directly with `python3.12` (Windows: `py -3.12`). Extract the archive for your platform and open the application. To test it with the Assistant, save the HTTPS address of the instance running your chosen Core branch with `assistant.personalModels.enabled` set to `true`. In that instance, select **Settings → Connect personal models → Connect**.
+Each local development build puts the tested app beside its archive and replaces the previous copy in that output folder, including the former filename with a space. Your personal settings live in the separate OS data folder. Both Intel and Apple Silicon use the same command.
+
+With native Python 3.12 you can also run the build script with `python3.12` or, on Windows, `py -3.12`. On Windows and Linux, open the executable inside the output folder’s `LODEON-Customizer` directory. To test with the Assistant, enable `assistant.personalModels.enabled` on your instance, save its address in the app, then choose **Settings → Connect personal models → Connect** in that LODEON tab.
 
 ## Publish latest
 

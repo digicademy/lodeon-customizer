@@ -3,6 +3,7 @@
 import argparse
 import os
 import platform
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -12,10 +13,9 @@ import tomllib
 from pathlib import Path
 from venv import EnvBuilder
 
-from smoke import check_archive
+from smoke import NAME, check_archive
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = "LODEON Customizer"
 SYSTEM = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}[platform.system()]
 MACHINE = platform.machine().lower()
 ARCH = {"amd64": "x86_64", "aarch64": "arm64"}.get(MACHINE, MACHINE)
@@ -25,6 +25,51 @@ def run(*args, **kwargs):
     subprocess.run(list(map(str, args)), check=True, **kwargs)
 
 
+def local_app_folder(name):
+    return name + ".app" if SYSTEM == "macos" else name
+
+
+def is_customizer_app(path, name):
+    if path.is_symlink() or not path.is_dir():
+        return False
+    if SYSTEM == "macos":
+        info = path / "Contents/Info.plist"
+        if not info.is_file():
+            return False
+        try:
+            metadata = plistlib.loads(info.read_bytes())
+        except (plistlib.InvalidFileException, ValueError):
+            return False
+        return (isinstance(metadata, dict) and metadata.get("CFBundleIdentifier") == "org.lodeon.customizer"
+                and metadata.get("CFBundleExecutable") == name)
+    executable = name + ".exe" if SYSTEM == "windows" else name
+    return (path / executable).is_file() and (path / "_internal").is_dir()
+
+
+def publish_local_app(source, output):
+    target = output / local_app_folder(NAME)
+    previous_name = "LODEON Customizer"
+    previous = output / local_app_folder(previous_name)
+    if (target.exists() or target.is_symlink()) and not is_customizer_app(target, NAME):
+        raise RuntimeError(f"Cannot replace unrelated file at {target}")
+    with tempfile.TemporaryDirectory(dir=output) as temporary:
+        stage = Path(temporary)
+        candidate = stage / "new"
+        shutil.move(source, candidate)
+        backup = stage / "old"
+        if target.exists():
+            target.rename(backup)
+        try:
+            candidate.rename(target)
+        except OSError:
+            if backup.exists():
+                backup.rename(target)
+            raise
+        if is_customizer_app(previous, previous_name):
+            previous.rename(stage / "previous-name")
+    return target
+
+
 def build(core, work, output, release):
     work.mkdir(parents=True, exist_ok=True)
     venv = work / "venv"
@@ -32,8 +77,6 @@ def build(core, work, output, release):
         EnvBuilder(with_pip=True).create(venv)
     python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    env = {**os.environ, "LODEON_CORE_ROOT": str(core), "LODEON_CUSTOMIZER_ROOT": str(ROOT),
-           "PYTHONPATH": str(core / "config"), "LITELLM_LOCAL_MODEL_COST_MAP": "True"}
     with tempfile.TemporaryDirectory(dir=work) as tmp:
         stage = Path(tmp)
         # Stage only public build inputs. In particular, do not traverse personal data.
@@ -45,24 +88,40 @@ def build(core, work, output, release):
         package = stage / "customizer"
         shutil.copytree(ROOT / "src", package / "src", ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copy2(ROOT / "pyproject.toml", package)
+        public = stage / "public"
+        public.mkdir()
+        for filename in ("config.yml", "lodeon.package.yml"):
+            shutil.copy2(ROOT / filename, public)
+        env = {**os.environ, "LODEON_CORE_ROOT": str(core), "LODEON_CUSTOMIZER_ROOT": str(public),
+               "PYTHONPATH": str(core / "config"), "LITELLM_LOCAL_MODEL_COST_MAP": "True"}
         run(python, "-m", "pip", "install", "--disable-pip-version-check", runtime, package,
             "pyinstaller==6.22.3")
         run(python, "-m", "pip", "check")
         run(python, "-m", "unittest", "discover", "-s", ROOT / "checks", env=env)
         dist = stage / "dist"
         flags = []
+        icons = core / "editor/public/assets"
         if release and SYSTEM == "macos":
             flags += ["--codesign-identity", os.environ["MACOS_SIGN_IDENTITY"]]
         if SYSTEM == "macos":
-            flags += ["--osx-bundle-identifier", "org.lodeon.customizer"]
+            iconset = stage / "Customizer.iconset"
+            iconset.mkdir()
+            for size in (16, 32, 128, 256, 512):
+                for scale, suffix in ((1, ""), (2, "@2x")):
+                    run("sips", "-z", size * scale, size * scale, icons / "apple-touch-icon.png",
+                        "--out", iconset / f"icon_{size}x{size}{suffix}.png")
+            run("iconutil", "-c", "icns", iconset)
+            flags += ["--osx-bundle-identifier", "org.lodeon.customizer", "--icon", stage / "Customizer.icns"]
+        elif SYSTEM == "windows":
+            flags += ["--icon", icons / "favicon.ico"]
         run(python, "-m", "PyInstaller", "--noconfirm", "--onedir", "--windowed", "--name", NAME,
             "--distpath", dist, "--workpath", stage / "work", "--specpath", stage,
-            "--paths", core / "config", "--collect-data", "lodeon_model_runtime",
+            "--paths", core / "config", "--collect-data", "lodeon_model_runtime", "--collect-data", "lodeon_customizer",
             "--collect-data", "litellm", "--recursive-copy-metadata", "litellm",
             "--collect-submodules", "tiktoken_ext",
             "--add-data", f"{core / 'config/config.yml'}:resources/core",
-            "--add-data", f"{ROOT / 'config.yml'}:resources/package",
-            "--add-data", f"{ROOT / 'lodeon.package.yml'}:resources/package",
+            "--add-data", f"{public}:resources/package",
+            "--add-data", f"{core / 'resources/branding'}:resources/branding",
             "--add-data", f"{core / 'LICENSE'}:resources/core",
             *flags, ROOT / "release/launch.py", env=env)
         channel = version if release else "dev"
@@ -97,9 +156,15 @@ def build(core, work, output, release):
             archive = stage / (label + ".tar.gz")
             with tarfile.open(archive, "w:gz") as out:
                 out.add(dist / NAME, arcname=NAME)
-        check_archive(archive, stage / "Acceptance with spaces", SYSTEM)
+        extracted = stage / "Acceptance with spaces"
+        check_archive(archive, extracted, SYSTEM)
         output.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(archive, output / archive.name)
+        with tempfile.TemporaryDirectory(dir=output) as temporary:
+            pending = Path(temporary) / archive.name
+            shutil.copy2(archive, pending)
+            if not release and not os.environ.get("CI"):
+                print(f"App: {publish_local_app(extracted / local_app_folder(NAME), output)}", flush=True)
+            pending.replace(output / archive.name)
         print(f"Verified {output / archive.name}", flush=True)
 
 
