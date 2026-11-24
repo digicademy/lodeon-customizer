@@ -61,7 +61,7 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("Instance saved.", html)
         self.assertIn('href="/models/new"', html)
-        for route in ("/model", "/model-key"):
+        for route in ("/model", "/model-key", "/models/remove", "/brokers/remove"):
             self.assertEqual(request("POST", route, origin=origin, form={"secret": "fixture"})[0], 403)
         self.assertEqual(yaml.safe_load(config.read_bytes())["instance"], address)
         status, html = save("http://stories.example.org/lodeon/")
@@ -111,6 +111,35 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(switch(data)[0], 200)
         self.assertIn("catalog-broker", server.models.brokers)
         self.assertEqual(server.models.instance_settings["worker"], {"temperature": 0})
+
+        # Removal changes only the named private definition. Instance-only IDs cannot be removed.
+        self.assertEqual(request("GET", "/models/remove/worker")[0], 404)
+        self.assertEqual(request("POST", "/models/remove", origin=local,
+                                 form={"profile": "worker", "revision": revision()})[0], 409)
+        doc = yaml.safe_load(config.read_bytes())
+        assistant = doc["assistant"]
+        assistant["modelProfiles"]["worker"] = {"label": "Personal worker", "model": "example",
+            "provider": "ollama", "baseURL": "http://localhost:11434", "apiKeyEnv": "MODEL_KEY",
+            "promptCaching": {"enabled": False, "retention": "default"}}
+        assistant["defaultModel"] = "worker"
+        config.write_text(yaml.safe_dump(doc))
+        env = data / "models" / ".env"
+        env.write_text("MODEL_KEY=fixture\n")
+        server.set_models(LocalModels.load(config, identity))
+        before = revision()
+        self.assertIn('/brokers/edit/catalog-broker', request("GET", "/models/remove/worker")[1])
+        def remove(group, key, stamp):
+            return request("POST", f"/{group}/remove", origin=local, form={"profile": key, "revision": stamp})[0]
+        self.assertEqual(remove("models", "worker", before), 400)
+        self.assertEqual(revision(), before)
+        self.assertEqual(remove("brokers", "catalog-broker", before), 303)
+        self.assertEqual(remove("models", "worker", before), 409)
+        self.assertIn("clears your personal default", request("GET", "/models/remove/worker")[1])
+        self.assertEqual(remove("models", "worker", revision()), 303)
+        self.assertFalse(server.models.profile_ids)
+        self.assertFalse(server.models.default_model)
+        self.assertEqual(env.read_text(), "MODEL_KEY=fixture\n")
+        self.assertEqual(server.models.instance_settings, {"worker": {"temperature": 0}})
 
     def test_launch_remembers_folder_and_handles_an_unavailable_selection(self):
         with tempfile.TemporaryDirectory() as temp:

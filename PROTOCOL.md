@@ -20,12 +20,14 @@ LODEON instance URL on the app's local settings page. HTTPS is required except
 for HTTP on the exact hosts `localhost`, `127.0.0.1` and `[::1]`. A deployment path is
 retained for display. Browser permission is granted to its serialized origin
 (scheme, hostname and port), which is the boundary a browser can enforce.
-The app starts with no authorized origin. Its management forms post to `/instance`, `/model` (create or edit a profile),
-`/model-key` (write the key for a saved profile) and `/quit`. Model editing
-pages live under `/models/` on the app’s own origin. Only the key reference
-appears in YAML. The password field always opens empty. All require the local Host and its own Origin. Saving a valid
-configuration revokes active connections. The hosted page cannot administer
-the app, read a key or change the permitted instance.
+The app starts with no authorized origin. The folder, instance, model, key and
+broker management forms belong to the desktop origin. `POST /models/remove`
+and `POST /brokers/remove` delete one local definition at the form's recorded
+configuration revision. A broker reference blocks removal of its member.
+Only the key reference appears in YAML and the password field opens empty.
+Management writes require the local Host and its own Origin. Changing the
+personal target catalog revokes active connections. The hosted page cannot
+administer the app, read a key or change the permitted instance.
 
 The hosted client contacts the loopback service with credentials omitted,
 redirects rejected and no referrer. It must run in a secure context whose

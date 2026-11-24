@@ -54,8 +54,8 @@ label, dt, .model-title { display: block; font-weight: 650; font-size: .9rem; }
 input, button, summary { font: inherit; }
 input { width: 100%; min-width: 0; padding: .64rem .75rem; border: 1px solid var(--border); background: var(--control); color: var(--ink); border-radius: 6px; font-size: .9rem; }
 input::placeholder { color: var(--muted); }
-button { justify-content: center; gap: .45rem; flex: none; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--control); color: var(--ink); font-size: .85rem; font-weight: 630; cursor: pointer; }
-button:hover { border-color: var(--coral); }
+button, a.button { display: inline-flex; align-items: center; text-decoration: none; justify-content: center; gap: .45rem; flex: none; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--control); color: var(--ink); font-size: .85rem; font-weight: 630; cursor: pointer; }
+button:hover, a.button:hover { border-color: var(--coral); }
 .topbar button { white-space: nowrap; }
 button.primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
 button.primary:hover { box-shadow: inset 0 -3px var(--coral); }
@@ -126,3 +126,45 @@ textarea { resize: vertical; }
 .member-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: .75rem; padding: .5rem 0; }
 .member-row .check { margin: 0; flex-wrap: wrap; }
 @media (max-width: 600px) { .member-row { grid-template-columns: minmax(0, 1fr); } }
+
+[hidden] { display: none !important; }
+.model-sections { display: grid; gap: .85rem; min-width: 0; }
+.model-sections > h2 { margin: .3rem 0 0; }
+.model-sections .actions { gap: .45rem; }
+.model-sections .model { padding-block: .9rem; }
+.actions, .model-entry { flex-wrap: wrap; }
+.button.danger, button.danger { color: var(--danger); }
+.task-routing { margin-top: 1.75rem; }
+.task-routing h3 { margin: 0; font-size: .94rem; }
+.member-palette {
+  position: sticky; top: .4rem; z-index: 1; margin-block: .75rem; padding: .9rem 1rem;
+  background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--coral);
+  border-radius: 8px;
+}
+.member-palette .hint { margin-top: .25rem; }
+.route-chips { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.member-palette .route-chips, .route-zone .route-chips { color: var(--muted); font-size: .84rem; }
+.pool-chip, .route-chip { max-width: 100%; overflow-wrap: anywhere; cursor: grab; }
+.pool-chip { padding: .3rem .65rem; }
+.pool-chip[aria-pressed="true"] { background: var(--action); color: var(--on-action); }
+.profile-editor .task-row { margin: 1.1rem 0 0; padding: .85rem 1rem 1rem; border: 1px solid var(--rule); border-radius: 8px; }
+.profile-editor .task-row legend { margin: 0; padding-inline: .35rem; }
+.strategy { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; font-size: .86rem; }
+.strategy select { width: auto; padding: .25rem .55rem; }
+.task-zones { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; margin-top: .75rem; }
+.route-zone { min-width: 0; min-height: 5.25rem; padding: .65rem; border: 1px dashed var(--border); border-radius: 6px; background: var(--surface); }
+.zone-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .4rem; }
+.zone-heading strong { font-size: .86rem; }
+.zone-heading button { padding: .2rem .5rem; font-size: .78rem; }
+.zone-heading button:disabled { opacity: .5; cursor: default; }
+.route-chip {
+  display: inline-flex; gap: .2rem; align-items: center; padding: .15rem .25rem .15rem .5rem;
+  border: 1px solid var(--border); border-radius: 5px; background: var(--control); color: var(--ink);
+}
+.route-chip button { line-height: 1; border-color: transparent; min-width: 1.55rem; min-height: 1.55rem; padding: .2rem; }
+.route-chip button:hover { border-color: var(--border); }
+.drag-over, .route-zone:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+@media (max-width: 600px) {
+  .task-zones { grid-template-columns: minmax(0,1fr); }
+  .member-palette { position: static; }
+}

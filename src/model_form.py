@@ -83,6 +83,26 @@ def _group(profile, name, changes):
         profile.pop(name)
 
 
+def dependent_brokers(assistant, key):
+    return [name for name, broker in assistant.get("modelBrokers", {}).items()
+            if key in broker.get("members", {})]
+
+
+def remove_profile(path, section, key, revision, check):
+    def edit(settings):
+        assistant = settings.get("assistant", {})
+        entries = assistant.get(section, {})
+        if key not in entries:
+            raise ConfigError("config_changed")
+        if section == "modelProfiles" and dependent_brokers(assistant, key):
+            raise FormError("Edit the brokers that use this model before removing it.")
+        del entries[key]
+        if assistant.get("defaultModel") == key:
+            del assistant["defaultModel"]
+
+    return update_settings(path, revision, check, edit)
+
+
 def save_model(path, fields, check):
     original = fields["original"]
     key = fields["id"].strip()

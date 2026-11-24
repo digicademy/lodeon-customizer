@@ -102,22 +102,28 @@ def render_broker(form, choices, revision):
         key, _, hint = line.partition("|")
         if key.strip():
             current[key.strip()] = hint.strip()
-    rows_by_id = {**{k: choices.get(k, k) for k in current if k in choices}, **choices}
+    rows_by_id = {**{k: choices.get(k, k) for k in current if ID.fullmatch(k)}, **choices}
     member_fields = []
     for key, label in rows_by_id.items():
         name = escape(key, quote=True)
         hint = escape(current.get(key, ""), quote=True)
-        member_fields.append(f'''<div class="member-row"><label class="check"><input type="checkbox" name="member.{name}" {"checked" if key in current else ""}>
+        member_fields.append(f'''<div class="member-row"><label class="check"><input type="checkbox" data-model-name="{escape(label, quote=True)}" name="member.{name}" {"checked" if key in current else ""}>
 {escape(label)} <small>{name}</small></label><label>Routing hint<input name="hint.{name}" value="{hint}" placeholder="What this model does well"></label></div>''')
-    manual = "\n".join(f"{k} | {v}" for k, v in current.items() if k not in choices)
+    manual = "\n".join(f"{k} | {v}" for k, v in current.items() if k not in rows_by_id)
     options = "".join(f'<option value="{escape(k, quote=True)}">{escape(v)}</option>' for k,v in choices.items())
     rows = []
     for task in TASKS:
         routed = form[f"{task}-strategy"] == "routed"
-        rows.append(f'''<fieldset><legend>{task.capitalize()}</legend><div class="fields">
-<label>Strategy<select name="{task}-strategy"><option value="fixed">Fixed</option><option value="routed" {"selected" if routed else ""}>Routed</option></select></label>
-<label>Worker or ordered candidates<input list="member-ids" name="{task}-workers" value="{value(task+'-workers')}"></label>
-<label>Ordered fallback IDs<input name="{task}-fallbacks" value="{value(task+'-fallbacks')}"></label></div></fieldset>''')
+        zones = []
+        for role, label in (("workers", "Candidates" if routed else "Worker"), ("fallbacks", "Fallbacks")):
+            field = f"{task}-{role}"
+            zones.append(f'''<div class="route-zone" data-role="{role}" role="group" aria-labelledby="{field}-title">
+<div class="zone-heading"><strong id="{field}-title">{label}</strong><button type="button" data-assign hidden>Assign</button></div>
+<div class="route-chips" data-assignments></div>
+<label data-manual>{label} IDs<input name="{field}" value="{value(field)}" list="member-ids"></label></div>''')
+        rows.append(f'''<fieldset class="task-row" data-task="{task}"><legend>{task.capitalize()}</legend>
+<label class="strategy">Strategy<select name="{task}-strategy"><option value="fixed">Fixed</option><option value="routed" {"selected" if routed else ""}>Routed</option></select></label>
+<div class="task-zones">{"".join(zones)}</div></fieldset>''')
     return f'''<form class="panel profile-editor" method="post" action="/broker">
 <input type="hidden" name="revision" value="{revision}"><input type="hidden" name="original" value="{value("original")}">
 <datalist id="member-ids">{options}</datalist>
@@ -129,11 +135,16 @@ def render_broker(form, choices, revision):
 <label>Routing objective<input required name="objective" value="{value("objective")}"></label>
 <label>Routing prompt ID<input name="prompt" value="{value("prompt")}" placeholder="Assigned from broker ID"></label></div>
 <fieldset class="broker-members"><legend>Broker members</legend>{"".join(member_fields)}
-<details {"open" if manual or not choices else ""}><summary>Enter model IDs manually</summary>
+<details {"open" if manual or not rows_by_id else ""}><summary>Enter model IDs manually</summary>
 <label>Other members<textarea rows="2" name="members" placeholder="model-id | Routing hint">{escape(manual)}</textarea></label>
 <p class="hint">Use one line per model. Connect your LODEON tab to select available instance models by name.</p></details></fieldset>
 <label class="check"><input type="checkbox" name="default" {"checked" if form.get("default")=="on" else ""}>Use as my default model</label>
-<details><summary>Task routing</summary><p class="hint">Fixed tasks default to the router. Routed tasks default to all members. Separate candidate and fallback IDs with commas.</p>{"".join(rows)}</details>
+<section class="task-routing" aria-labelledby="task-routing-heading"><h2 id="task-routing-heading">Task routing</h2>
+<div class="member-palette" data-pool hidden><h3>Selected models</h3>
+<p class="hint">Drag a model into a task, or select it and choose Assign. Drag an assignment back here to remove it.</p>
+<div class="route-chips" data-palette></div></div>
+<p class="sr-only" aria-live="polite" data-routing-status></p>
+{"".join(rows)}</section>
 <footer><button class="primary">Save broker</button><a href="/">Back to settings</a></footer></form>'''
 
 

@@ -518,3 +518,10 @@ repository does not duplicate them or introduce a second implementation plan.
 ### Desktop review additions
 
 Open a new folder, save a model and a mixed broker, switch back to an existing folder, then restart and verify the selected path. In a connected tab, load the available instance models into the desktop list. Save a personal temperature or top P, reconnect and inspect **Model information**. Verify direct hosted execution and a personal broker with a hosted worker. Clear the fields to inherit instance defaults again. Source-level acceptance on macOS covered selecting a hosted model, saving a personal sampling value, composing a broker, saving its prompt and restoring a settings folder in Brave at desktop and mobile widths. The loopback tests also cover restarting with a saved folder and with that folder unavailable. Core verified a direct installed provider call and a hosted worker in a mixed broker with per-operation sampling. Native archive and platform file-picker review remain part of final desktop acceptance.
+
+Personal and instance models now have separate panels. Local removal clears a
+matching personal default and checks broker references before saving. Instance
+rows offer sampling settings. Each broker task has draggable worker or candidate
+and fallback areas, plus keyboard controls. A Brave desktop check exercised
+dragging, removal, ordering, saving and reopening a mixed broker, and the layout
+at 320 pixels. The existing broker policy and delegation wire format are unchanged.

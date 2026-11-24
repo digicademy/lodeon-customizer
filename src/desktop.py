@@ -3,6 +3,7 @@
 import sys
 from base64 import b64encode
 from functools import cache
+from hashlib import sha256
 from html import escape
 from pathlib import Path
 from string import Template
@@ -15,8 +16,11 @@ from .configuration import ConfigError, config_revision, read_model_environment,
 from . import broker_form
 from .instance_form import render_instance, save_sampling
 from .folders import open_folder, pick_folder
-from .model_form import FIELDS, FormError, PROVIDERS, key_revision, render_fields, save_key, save_model, values_for
+from .model_form import (FIELDS, FormError, PROVIDERS, dependent_brokers, key_revision,
+                         remove_profile, render_fields, save_key, save_model, values_for)
 from .profiles import LocalModels
+
+PERSONAL_SECTIONS = {"models": ("modelProfiles", "model"), "brokers": ("modelBrokers", "broker")}
 
 
 @cache
@@ -64,7 +68,7 @@ def model_list(contents):
     if not isinstance(assistant, dict):
         raise ConfigError("invalid_config")
     cards = []
-    for section in ("modelProfiles", "modelBrokers"):
+    for group, (section, _) in PERSONAL_SECTIONS.items():
         items = assistant.get(section, {})
         if not isinstance(items, dict):
             raise ConfigError("invalid_config")
@@ -75,10 +79,11 @@ def model_list(contents):
             broker = section == "modelBrokers"
             kind = "Broker" if broker else PROVIDERS.get(item.get("provider"), "")
             meta = kind + (" · Default" if assistant.get("defaultModel") == key else "")
-            group, noun = ("brokers", "broker") if broker else ("models", "model")
-            edit = f'<a href="/{group}/edit/{quote(key, safe="")}" aria-label="Edit {label}">Edit {noun}</a>'
+            target = quote(key, safe="")
+            edit = f'<a class="button" href="/{group}/edit/{target}" aria-label="Edit {label}">Edit</a>'
+            remove = f'<a class="button danger" href="/{group}/remove/{target}" aria-label="Remove {label}">Remove</a>'
             cards.append(f'<div class="model model-entry"><div><div class="model-title">{label}</div>'
-                         f'<small>{escape(meta)}</small></div>{edit}</div>')
+                         f'<small>{escape(meta)}</small></div><div class="actions">{edit}{remove}</div></div>')
     return "".join(cards) or '<div class="panel-body"><p>No local models or brokers configured.</p></div>'
 
 
@@ -133,10 +138,19 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
     return send_html(handler, layout(content, running=True), status)
 
 
-def editor_page(handler, title, form, message="", status=200):
+def editor_page(handler, title, form, message="", status=200, *, routing=False):
     content = (f'<a class="back" href="/">← LODEON Customizer</a><header class="page-title"><h1>{escape(title)}</h1></header>'
                + notice_html(message, status) + form)
+    if routing:
+        script, digest = routing_script()
+        return send_html(handler, layout(content + f'<script>{script}</script>', running=True), status, script_hash=digest)
     return send_html(handler, layout(content, running=True), status)
+
+
+@cache
+def routing_script():
+    script = Path(__file__).with_name("broker-routing.js").read_text(encoding="utf-8")
+    return script, b64encode(sha256(script.encode()).digest()).decode("ascii")
 
 
 def broker_page(handler, key="", *, message="", status=200, submitted=None):
@@ -167,7 +181,7 @@ def broker_page(handler, key="", *, message="", status=200, submitted=None):
         except (ValueError, OSError) as error:
             message = str(error) if isinstance(error, FormError) else "Check the local routing prompt files."
             status = 400
-    return editor_page(handler, "Edit broker" if key else "Add broker", form, message, status)
+    return editor_page(handler, "Edit broker" if key else "Add broker", form, message, status, routing=True)
 
 
 def instance_page(handler, key, message="", status=200):
@@ -180,8 +194,36 @@ def instance_page(handler, key, message="", status=200):
     return editor_page(handler, model["label"], form, message, status)
 
 
+def removal_page(handler, group, key):
+    section, noun = PERSONAL_SECTIONS[group]
+    config = handler.server.data / "config.yml"
+    raw = config.read_bytes()
+    assistant = yaml.safe_load(raw).get("assistant", {})
+    item = assistant.get(section, {}).get(key)
+    if item is None:
+        return page(handler, f"This personal {noun} no longer exists.", 404)
+    label = item.get("label") or key
+    dependencies = dependent_brokers(assistant, key) if group == "models" else []
+    if dependencies:
+        links = "".join(f'<li><a href="/brokers/edit/{quote(name, safe="")}">{escape(broker.get("label") or name)}</a></li>'
+                        for name, broker in assistant["modelBrokers"].items() if name in dependencies)
+        content = f'<div class="panel profile-editor"><p>Remove this model from the following brokers first.</p><ul>{links}</ul><a class="button" href="/">Back to models</a></div>'
+    else:
+        default = " This also clears your personal default." if assistant.get("defaultModel") == key else ""
+        files = "Routing prompt files stay in this folder." if group == "brokers" else "Provider keys stay in the local keys file."
+        content = f'''<form method="post" action="/{group}/remove" class="panel profile-editor">
+<p>Remove <strong>{escape(label)}</strong> ({escape(key)}) from your personal configuration?{default} {files}</p>
+<input type="hidden" name="revision" value="{config_revision(config, raw)}"><input type="hidden" name="profile" value="{escape(key, quote=True)}">
+<footer><button class="danger">Remove {noun}</button><a class="button" href="/">Cancel</a></footer></form>'''
+    return editor_page(handler, f"Remove {noun}", content)
+
+
 def model_get(handler):
     url = urlsplit(handler.path)
+    for group in PERSONAL_SECTIONS:
+        prefix = f"/{group}/remove/"
+        if url.path.startswith(prefix):
+            return removal_page(handler, group, url.path.removeprefix(prefix))
     if url.path == "/brokers/new":
         return broker_page(handler)
     if url.path.startswith("/brokers/edit/"):
@@ -199,13 +241,14 @@ def model_get(handler):
     return page(handler, "Model page not found.", 404)
 
 
-def send_html(handler, html, status=200):
+def send_html(handler, html, status=200, *, script_hash=None):
     body = html.encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "text/html; charset=utf-8")
     handler.send_header("Cache-Control", "no-store")
     handler.send_header("X-LODEON-Customizer", "desktop")
-    handler.send_header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+    script_policy = f"; script-src 'sha256-{script_hash}'" if script_hash else ""
+    handler.send_header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" + script_policy)
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
@@ -233,7 +276,7 @@ def page(handler, message="", status=200):
     remote = "".join(
         f'<div class="model model-entry"><div><div class="model-title">{escape(item["label"])}</div>'
         f'<small>Instance · {escape(PROVIDERS[item["provider"]])}</small></div>'
-        f'<a href="/instance-models/edit/{quote(key, safe="")}">Edit settings</a></div>'
+        f'<a class="button" href="/instance-models/edit/{quote(key, safe="")}" aria-label="Edit settings for {escape(item["label"], quote=True)}">Edit settings</a></div>'
         for key, item in sorted(installed.items(), key=lambda pair: pair[1]["label"].casefold())
     )
     folder_form = template("folder.html").substitute(
@@ -276,7 +319,8 @@ def local_action(handler):
     is_model = handler.path == "/model"
     if not 0 < size <= (65536 if handler.path in {"/model", "/broker", "/broker-prompt"} else 8192):
         raise ValueError("invalid_request")
-    expected = {"/broker": broker_form.FIELDS, "/broker-prompt": {"profile", "revision", "promptRevision", "content"},
+    expected = {"/models/remove": {"profile", "revision"}, "/brokers/remove": {"profile", "revision"},
+                "/broker": broker_form.FIELDS, "/broker-prompt": {"profile", "revision", "promptRevision", "content"},
                 "/instance-model": {"profile", "revision", "temperature", "topP"}, "/folder": {"folder", "method", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
                 "/model-key": {"profile", "revision", "keyRevision", "secret"}}[handler.path]
     parsed = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
@@ -323,7 +367,12 @@ def local_action(handler):
             if handler.path == "/instance":
                 server.set_models(save_instance(config, fields["instance"].strip(), fields["revision"], check))
                 return page(handler, "Instance saved.")
-            if handler.path == "/instance-model":
+            if handler.path in ("/models/remove", "/brokers/remove"):
+                group = handler.path.split("/")[1]
+                section, noun = PERSONAL_SECTIONS[group]
+                server.set_models(remove_profile(config, section, fields["profile"], fields["revision"], check))
+                location = f"/?removed={noun}"
+            elif handler.path == "/instance-model":
                 key = fields["profile"]
                 if key not in server.grants.visible_models():
                     return page(handler, "Reconnect your LODEON tab to load its available models.", 409)

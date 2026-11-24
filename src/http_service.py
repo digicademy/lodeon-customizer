@@ -163,11 +163,14 @@ class ModelHandler(BaseHTTPRequestHandler):
                 raise ValueError("denied")
             if self.command == "GET" and "Origin" not in self.headers:
                 with self.server.settings_lock:
+                    if self.path in ("/?removed=model", "/?removed=broker"):
+                        noun = self.path.split("=")[1]
+                        return page(self, f"Personal {noun} removed. Reconnect your LODEON tab to refresh its model list.")
                     if self.path == "/":
                         return page(self)
                     if self.path.startswith(("/models/", "/brokers/", "/instance-models/")):
                         return model_get(self)
-            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/folder", "/quit", "/broker", "/broker-prompt", "/instance-model"):
+            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/folder", "/quit", "/broker", "/broker-prompt", "/instance-model", "/models/remove", "/brokers/remove"):
                 return local_action(self)
             with self.server.settings_lock:
                 grants, models = self.server.grants, self.server.models

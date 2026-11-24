@@ -89,6 +89,17 @@ async function main() {
     await settings.getByRole("button", { name: "Save model" }).click();
     await settings.getByRole("status").waitFor();
     assert.deepEqual(await connect(allowed), [200, 1, 204]);
+    await settings.goto(local);
+    await settings.getByRole("link", { name: "Add broker" }).click();
+    await settings.getByRole("checkbox", { name: /Personal Ollama/ }).check();
+    const pool = settings.locator("[data-pool]");
+    const source = pool.getByRole("button", { name: /Personal Ollama/ });
+    const fallbacks = settings.locator('[data-task="plan"] [data-role="fallbacks"]');
+    await source.dragTo(fallbacks);
+    const assigned = fallbacks.locator("[data-model]");
+    await assigned.waitFor();
+    await assigned.dragTo(pool);
+    await assigned.waitFor({ state: "detached" });
     await settings.getByRole("button", { name: "Quit Customizer" }).click();
     assert.equal((await exit)[0], 0);
     console.log(type, browser.version(), "local settings, hosted connect/catalog/disconnect and foreign-origin denial passed.");
