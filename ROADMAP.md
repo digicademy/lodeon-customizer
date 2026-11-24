@@ -478,8 +478,16 @@ GitLab configuration passed schema validation. Local CI fixtures exercised
 the five imports, checksums, tag selection and rejection of a superseded ref,
 failed build, wrong commit and mixed Core revisions. A Linux ARM64 rolling
 archive built against public Core `f7a3d052` passed all ten Package tests,
-extracted first launch, setup, restart and a provider request. The first hosted
-five-platform run and signed-out GitLab downloads remain to be verified.
+extracted first launch, setup, restart and a provider request.
+
+The [first hosted run](https://github.com/digicademy/lodeon-customizer/actions/runs/45467624073)
+passed on Windows x64, both Linux targets and macOS ARM64. The Intel Mac
+packaged the app and passed first launch. Its restart probe stopped on a TCP
+connect timeout. The smoke test now retries short readiness requests within
+the existing 60-second startup window. An extracted Linux ARM64 archive
+passed with a timeout injected on restart, and a persistently unreachable
+service failed at the deadline. A successful hosted Intel restart and
+signed-out downloads from GitLab remain to be verified.
 
 The tagged pipeline publishes the five reviewed
 archives and verification files in the Generic Package Registry. Release

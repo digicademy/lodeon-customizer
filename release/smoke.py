@@ -42,8 +42,8 @@ class Provider(BaseHTTPRequestHandler):
         pass
 
 
-def request(method, path, body=None, *, origin=None, grant=None, status=200, form=False):
-    conn = HTTPConnection("127.0.0.1", 8765, timeout=45)
+def request(method, path, body=None, *, origin=None, grant=None, status=200, form=False, timeout=45):
+    conn = HTTPConnection("127.0.0.1", 8765, timeout=timeout)
     try:
         headers = {}
         if origin:
@@ -91,19 +91,25 @@ def check_archive(archive, scratch, system):
     config = data / "config.yml"
     proc = None
 
-    def launch():
+    def launch(phase):
         nonlocal proc
         proc = subprocess.Popen([exe, "--no-browser"], cwd=home, env=env)
         until = time.monotonic() + 60
-        while time.monotonic() < until and proc.poll() is None:
+        last_error = None
+        while proc.poll() is None:
+            remaining = until - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError(f"{phase}: {LOCAL} was not ready within 60 seconds") from last_error
             try:
-                page = request("GET", "/")
-                if str(config) not in html.unescape(page):
-                    raise RuntimeError("Unexpected data folder or another instance on port 8765")
-                return
-            except ConnectionRefusedError:
+                page = request("GET", "/", timeout=min(2, remaining))
+            except (ConnectionRefusedError, TimeoutError) as error:
+                last_error = error
                 time.sleep(0.15)
-        raise RuntimeError(f"Desktop startup failed, exit status {proc.poll()}")
+                continue
+            if str(config) not in html.unescape(page):
+                raise RuntimeError(f"{phase}: unexpected data folder or another instance on port 8765")
+            return
+        raise RuntimeError(f"{phase}: desktop exited with status {proc.returncode} before it was ready")
 
     def quit_app():
         request("POST", "/quit", origin=LOCAL)
@@ -114,7 +120,7 @@ def check_archive(archive, scratch, system):
         provider.calls = 0
         threading.Thread(target=provider.serve_forever, daemon=True).start()
         try:
-            launch()
+            launch("First launch")
             subprocess.run([exe, "--no-browser"], cwd=home, env=env, timeout=15, check=True)
             identity = (data / ".service-id").read_bytes()
             request("POST", "/v1/connect", origin=ORIGIN, status=403)
@@ -142,7 +148,7 @@ assistant:
             keyfile = data / "models" / ".env"
             keyfile.write_text("TEST_MODEL_KEY=" + KEY + "\n", encoding="utf-8")
             original = config.read_bytes(), keyfile.read_bytes(), identity
-            launch()
+            launch("Restart")
             if (config.read_bytes(), keyfile.read_bytes(), (data / ".service-id").read_bytes()) != original:
                 raise RuntimeError("Desktop restart changed personal data")
             request("GET", "/v1/targets", origin=ORIGIN, grant=pair["grant"], status=403)
