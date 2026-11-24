@@ -1,4 +1,4 @@
-<a class="back" href="/">← LODEON Customizer</a>
+<a class="back" href="/#models-heading">← Models</a>
 <header class="page-title"><h1>$title</h1></header>
 $notice
 $key_form
@@ -7,8 +7,7 @@ $key_form
   <input type="hidden" name="original" value="$original">
   <fieldset><legend>Model connection</legend>
     <div class="fields">$basic</div>
-    <p class="hint">Ollama, OpenAI and Anthropic have default endpoints. For an OpenAI-compatible server, enter its URL. Save the profile to enter a personal API key.</p>
-    <label class="check"><input type="checkbox" name="default" $default_checked>Use as my default model</label>
+    $default_field
   </fieldset>
   <details $advanced_open><summary>Advanced settings</summary>
     <fieldset><legend>Generation and caching</legend><div class="fields">$generation</div></fieldset>

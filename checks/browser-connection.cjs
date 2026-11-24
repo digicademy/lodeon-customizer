@@ -41,7 +41,7 @@ async function main() {
     const context = await browser.newContext();
     const settings = await context.newPage();
     await settings.goto(local);
-    await settings.getByLabel("LODEON instance URL").fill(approved + "/lodeon/");
+    await settings.locator("header").getByRole("textbox", { name: "Instance connection", exact: true }).fill(approved + "/lodeon/");
     await settings.getByRole("button", { name: "Save instance" }).click();
     await settings.getByText("Instance saved.").waitFor();
 
@@ -66,7 +66,8 @@ async function main() {
     async function connect(page) {
       return page.evaluate(async base => {
         const options = { credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" };
-        const pair = await fetch(base + "/v1/connect", { ...options, method: "POST" });
+        const pair = await fetch(base + "/v1/connect", { ...options, method: "POST",
+          headers: { "Content-Type": "application/json" }, body: JSON.stringify({models: true}) });
         if (!pair.ok) throw Error("Connect failed " + pair.status);
         const { grant } = await pair.json();
         const auth = { ...options, headers: { Authorization: "Bearer " + grant } };
@@ -79,9 +80,9 @@ async function main() {
     await assert.rejects(connect(blocked), /fetch|network|load failed/i);
     assert.deepEqual(await connect(allowed), [200, 0, 204]);
     await settings.getByRole("link", { name: "Add model" }).click();
-    await settings.getByLabel("Display name").fill("Personal Ollama");
-    await settings.getByLabel("Provider model name").fill("fixture-model");
-    await settings.getByLabel("Use as my default model").check();
+    await settings.getByLabel("Display name", { exact: true }).fill("Personal Ollama");
+    await settings.getByLabel("Provider model name", { exact: true }).fill("fixture-model");
+    await settings.getByLabel("Use as my default model", { exact: true }).check();
     await settings.getByRole("button", { name: "Save model" }).click();
     await settings.getByRole("heading", { name: "Edit model" }).waitFor();
     await settings.getByText("Advanced settings", { exact: true }).click();

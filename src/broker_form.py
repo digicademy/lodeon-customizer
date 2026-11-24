@@ -14,6 +14,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .configuration import ConfigError, config_revision, load_configuration, update_settings
+from .form_fields import DEFAULT_HELP, field_help, form_field
 from .model_form import FormError
 
 
@@ -64,12 +65,14 @@ def save_broker(config, form, check):
         strategy = form[f"{task}-strategy"]
         workers = [x.strip() for x in form[f"{task}-workers"].split(",") if x.strip()]
         target = {"strategy": strategy, "fallbacks": [x.strip() for x in form[f"{task}-fallbacks"].split(",") if x.strip()]}
+        if not workers:
+            raise FormError(f"Assign {'a worker' if strategy == 'fixed' else 'at least one candidate'} to {task} before saving.")
         if strategy == "fixed":
             if len(workers) > 1:
                 raise FormError(f"Choose one fixed worker for {task}.")
-            target["model"] = workers[0] if workers else router
+            target["model"] = workers[0]
         else:
-            target["candidates"] = workers or list(members)
+            target["candidates"] = workers
         policy["tasks"][task] = target
     try:
         validate_delegated_broker(policy)
@@ -95,8 +98,9 @@ def save_broker(config, form, check):
 
 
 def render_broker(form, choices, revision):
-    def value(name):
-        return escape(str(form.get(name, "")), quote=True)
+    def field(name, label, explanation, **options):
+        return form_field(name, label, explanation, value=form.get(name, ""), **options)
+
     current = {}
     for line in form["members"].splitlines():
         key, _, hint = line.partition("|")
@@ -106,9 +110,12 @@ def render_broker(form, choices, revision):
     member_fields = []
     for key, label in rows_by_id.items():
         name = escape(key, quote=True)
-        hint = escape(current.get(key, ""), quote=True)
-        member_fields.append(f'''<div class="member-row"><label class="check"><input type="checkbox" data-model-name="{escape(label, quote=True)}" name="member.{name}" {"checked" if key in current else ""}>
-{escape(label)} <small>{name}</small></label><label>Routing hint<input name="hint.{name}" value="{hint}" placeholder="What this model does well"></label></div>''')
+        attrs = f'data-model-name="{escape(label, quote=True)}"' + (" checked" if key in current else "")
+        member = form_field("member." + key, label, f"Make {key} available for assignment to this broker’s tasks.",
+                            kind="checkbox", attrs=attrs)
+        hint = form_field("hint." + key, "Routing hint", f"Tell the router when to choose {label}. For example, use this model for SPARQL queries.",
+                          value=current.get(key, ""), attrs='placeholder="What does this model do well?"')
+        member_fields.append(f'<div class="member-row">{member}<div class="member-hint">{hint}</div></div>')
     manual = "\n".join(f"{k} | {v}" for k, v in current.items() if k not in rows_by_id)
     options = "".join(f'<option value="{escape(k, quote=True)}">{escape(v)}</option>' for k,v in choices.items())
     rows = []
@@ -116,29 +123,35 @@ def render_broker(form, choices, revision):
         routed = form[f"{task}-strategy"] == "routed"
         zones = []
         for role, label in (("workers", "Candidates" if routed else "Worker"), ("fallbacks", "Fallbacks")):
-            field = f"{task}-{role}"
-            zones.append(f'''<div class="route-zone" data-role="{role}" role="group" aria-labelledby="{field}-title">
-<div class="zone-heading"><strong id="{field}-title">{label}</strong><button type="button" data-assign hidden>Assign</button></div>
+            zone_id = f"{task}-{role}"
+            explanation = ("If the selected model fails, try these models in the order shown." if role == "fallbacks" else
+                           "Assign one worker for a fixed task or the models the router may choose from for a routed task.")
+            zones.append(f'''<div class="route-zone" data-role="{role}" role="group" aria-labelledby="{zone_id}-title" aria-describedby="help-{zone_id}">
+<div class="zone-heading"><div class="field-caption"><strong id="{zone_id}-title">{label}</strong>{field_help(zone_id, task + " " + role, explanation)}</div><button type="button" data-assign hidden>Assign</button></div>
 <div class="route-chips" data-assignments></div>
-<label data-manual>{label} IDs<input name="{field}" value="{value(field)}" list="member-ids"></label></div>''')
+<label data-manual>{label} IDs<input name="{zone_id}" aria-describedby="help-{zone_id}" value="{escape(str(form[zone_id]), quote=True)}" list="member-ids"></label></div>''')
+        strategy = form_field(f"{task}-strategy", "Strategy", "Fixed always uses the assigned worker. Routed asks the router to choose among the assigned candidates.",
+                              value=form[f"{task}-strategy"], options={"fixed": "Fixed", "routed": "Routed"})
         rows.append(f'''<fieldset class="task-row" data-task="{task}"><legend>{task.capitalize()}</legend>
-<label class="strategy">Strategy<select name="{task}-strategy"><option value="fixed">Fixed</option><option value="routed" {"selected" if routed else ""}>Routed</option></select></label>
+<div class="strategy">{strategy}</div>
 <div class="task-zones">{"".join(zones)}</div></fieldset>''')
+    identity = (field("label", "Display name", "Name shown in the Assistant model selector.", attrs="required") +
+                field("id", "Broker ID", "Stable configuration ID. Leave blank to derive it from the display name.",
+                      attrs="readonly" if form["original"] else 'placeholder="Generated from display name"') +
+                field("description", "Description", "Describe when someone should select this broker.", kind="textarea", wide=True, attrs='rows="4"'))
+    router = (field("router", "Router model", "Member that chooses among candidates for routed tasks. An empty value uses the first member as router.", attrs='list="member-ids" placeholder="First member"') +
+              field("prompt", "Routing prompt ID", "Identifies the local Markdown routing prompt. Save the broker to edit that prompt.", attrs='placeholder="Assigned from broker ID"') +
+              field("objective", "Routing objective", "Tell the router what to prioritise when choosing a candidate, for example query accuracy or response time.", kind="textarea", wide=True, attrs='rows="3" required'))
+    manual_field = form_field("members", "Other members", "Use one line per model, with its ID and routing hint separated by |. Connect a LODEON tab to select available instance models by name.",
+                              kind="textarea", value=manual, attrs='rows="3" placeholder="model-id | Routing hint"')
+    default = field("default", "Use as my default model", DEFAULT_HELP, kind="checkbox", attrs="checked" if form.get("default") == "on" else "")
     return f'''<form class="panel profile-editor" method="post" action="/broker">
-<input type="hidden" name="revision" value="{revision}"><input type="hidden" name="original" value="{value("original")}">
+<input type="hidden" name="revision" value="{revision}"><input type="hidden" name="original" value="{escape(form["original"], quote=True)}">
 <datalist id="member-ids">{options}</datalist>
-<div class="fields"><label>Display name<input name="label" required value="{value("label")}"></label>
-<label>Broker ID<input name="id" {"readonly" if form["original"] else ""} value="{value("id")}" placeholder="Generated from display name"></label>
-<label>Description<textarea name="description">{value("description")}</textarea></label>
-
-<label>Router model<input name="router" list="member-ids" value="{value("router")}" placeholder="First member"></label>
-<label>Routing objective<input required name="objective" value="{value("objective")}"></label>
-<label>Routing prompt ID<input name="prompt" value="{value("prompt")}" placeholder="Assigned from broker ID"></label></div>
+<fieldset><legend>Broker profile</legend><div class="fields">{identity}</div>{default}</fieldset>
 <fieldset class="broker-members"><legend>Broker members</legend>{"".join(member_fields)}
-<details {"open" if manual or not rows_by_id else ""}><summary>Enter model IDs manually</summary>
-<label>Other members<textarea rows="2" name="members" placeholder="model-id | Routing hint">{escape(manual)}</textarea></label>
-<p class="hint">Use one line per model. Connect your LODEON tab to select available instance models by name.</p></details></fieldset>
-<label class="check"><input type="checkbox" name="default" {"checked" if form.get("default")=="on" else ""}>Use as my default model</label>
+<details class="disclosure" {"open" if manual or not rows_by_id else ""}><summary>Enter model IDs manually</summary>{manual_field}</details></fieldset>
+<fieldset><legend>Router</legend><div class="fields">{router}</div></fieldset>
 <section class="task-routing" aria-labelledby="task-routing-heading"><h2 id="task-routing-heading">Task routing</h2>
 <div class="member-palette" data-pool hidden><h3>Selected models</h3>
 <p class="hint">Drag a model into a task, or select it and choose Assign. Drag an assignment back here to remove it.</p>

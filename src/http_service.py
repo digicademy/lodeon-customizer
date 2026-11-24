@@ -23,7 +23,7 @@ ROUTES = {
     "cancel": "POST",
     "disconnect": "POST",
 }
-BODY = {"instance-models", "broker", "invoke", "cancel"}
+BODY = {"connect", "instance-models", "broker", "invoke", "cancel"}
 STATUS = {
     "denied": 403,
     "invalid_request": 400,
@@ -209,13 +209,18 @@ class ModelHandler(BaseHTTPRequestHandler):
             if self.command != ROUTES[route]:
                 raise ValueError("invalid_request")
             if route == "connect":
-                self._body(route)
-                return self._reply(200, grants.connect(origin), origin=origin)
+                body = self._body(route)
+                _closed(body, {"models"})
+                if not isinstance(body["models"], bool):
+                    raise ValueError("invalid_request")
+                return self._reply(200, grants.connect(origin, models=body["models"]), origin=origin)
             auth = self.headers.get("Authorization", "")
             if len(self.headers.get_all("Authorization", [])) != 1 or not auth.startswith("Bearer "):
                 raise ValueError("denied")
             token = auth[7:]
             grant = grants.get(origin, token)
+            if route != "disconnect" and not grant.models_allowed:
+                raise ValueError("denied")
             body = self._body(route)
             if route == "instance-models":
                 installed = read_catalog(body)

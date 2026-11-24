@@ -28,8 +28,6 @@
     return element;
   }
 
-  // An untouched new task follows the form's existing router/all-members defaults.
-  const automatic = new Set(zones.filter(zone => zone.dataset.role === "workers" && !ids(zone).length));
   function renderZone(zone) {
     const label = title(zone);
     zone.querySelector("strong").textContent = label;
@@ -74,7 +72,6 @@
     renderZone(zone);
   }
   function remove(zone, id) {
-    automatic.delete(zone);
     update(zone, ids(zone).filter(value => value !== id));
     status.textContent = "Removed " + id + " from " + context(zone) + ".";
   }
@@ -84,7 +81,6 @@
     const index = ordered.indexOf(neighbour);
     ordered.splice(index < 0 ? ordered.length : index + Number(after), 0, id);
     if (source && source !== zone) remove(source, id);
-    automatic.delete(zone);
     update(zone, fixed(zone) ? [id] : ordered);
     status.textContent = "Assigned " + id + " to " + context(zone) + ".";
   }
@@ -126,10 +122,7 @@
     }
     if (!members.size) palette.textContent = "Select broker members above.";
     for (const zone of zones) {
-      const ordered = automatic.has(zone)
-        ? (fixed(zone) ? [router.value || members.keys().next().value] : [...members.keys()])
-        : ids(zone);
-      update(zone, ordered.filter(id => members.has(id)));
+      update(zone, ids(zone).filter(id => members.has(id)));
     }
   }
 
@@ -139,19 +132,12 @@
     zone.querySelector("[data-assign]").addEventListener("click", () => place(selected, null, zone));
   }
   memberFields.addEventListener("change", refreshMembers);
-  form.elements.router.addEventListener("change", refreshMembers);
   for (const task of form.querySelectorAll("[data-task]")) {
     const zone = task.querySelector('[data-role="workers"]');
     task.querySelector("select").addEventListener("change", () => {
-      if (automatic.has(zone)) return refreshMembers();
-      const current = ids(zone);
-      if (fixed(zone)) {
-        zone.dataset.candidates = JSON.stringify(current);
-        update(zone, current.slice(0, 1));
-      } else {
-        const saved = JSON.parse(zone.dataset.candidates || "[]").filter(id => members.has(id));
-        update(zone, [...new Set([...current, ...saved])]);
-      }
+      const assigned = ids(zone);
+      // A fixed task with several previous candidates needs an explicit choice.
+      update(zone, fixed(zone) && assigned.length > 1 ? [] : assigned);
     });
   }
 

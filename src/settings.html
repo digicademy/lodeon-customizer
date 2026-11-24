@@ -4,42 +4,26 @@
 </header>
 $notice
 <div class="workspace">
-  <div class="panels">
-    <section class="panel" aria-labelledby="connection-heading">
-      <div class="panel-head"><h2 id="connection-heading">$link_icon Instance connection</h2>$instance_state</div>
-      <form class="panel-body" method="post" action="/instance">
-        <label for="url">LODEON instance URL</label>
-        <div class="input-row">
-          <input id="url" name="instance" type="url" placeholder="https://stories.example.org/lodeon/"
-                 aria-describedby="url-hint" required value="$address">
-          <input type="hidden" name="revision" value="$revision">
-          <button class="primary">Save instance</button>
+  <section class="model-sections" aria-labelledby="models-heading">
+    <h2 id="models-heading">$models_icon Models</h2>
+    <section class="panel" aria-labelledby="personal-heading">
+      <div class="panel-head">
+        <h3 id="personal-heading">Personal models</h3>
+        <div class="actions">
+          <a class="button" href="/models/new">Add model</a>
+          <a class="button" href="/brokers/new">Add broker</a>
         </div>
-        <p id="url-hint" class="hint">Copy the address from your LODEON tab, including its deployment path.</p>
-      </form>
-      <p class="panel-foot">Then open <strong>Settings → Connect personal models</strong> in that tab.</p>
+      </div>
+      $models
     </section>
-    <section class="model-sections" aria-labelledby="models-heading">
-      <h2 id="models-heading">$models_icon Models</h2>
-      <section class="panel" aria-labelledby="personal-heading">
-        <div class="panel-head">
-          <h3 id="personal-heading">Personal models</h3>
-          <div class="actions">
-            <a class="button" href="/models/new">Add model</a>
-            <a class="button" href="/brokers/new">Add broker</a>
-          </div>
-        </div>
-        $models
-      </section>
-      <section class="panel" aria-labelledby="instance-heading">
-        <div class="panel-head">
-          <h3 id="instance-heading">Instance models</h3>
-          <a class="button" href="/">Refresh list</a>
-        </div>
-        $instance_models
-      </section>
+    <section class="panel" aria-labelledby="instance-heading">
+      <div class="panel-head">
+        <h3 id="instance-heading">Instance models</h3>
+        <a class="button" href="/">Refresh list</a>
+      </div>
+      $instance_models
     </section>
-  </div>
+  </section>
   <aside class="panel files" aria-labelledby="files-heading">
     <div class="panel-head"><h2 id="files-heading">$folder_icon Local files</h2></div>
     $folder_form

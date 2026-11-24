@@ -150,7 +150,7 @@ printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
             request("POST", "/instance", form, origin=ORIGIN, form=True, status=403)
             request("POST", "/instance", form, origin=LOCAL, form=True)
             request("POST", "/v1/connect", origin="https://other.example.org", status=403)
-            pair = request("POST", "/v1/connect", origin=ORIGIN)
+            pair = request("POST", "/v1/connect", {"models": True}, origin=ORIGIN)
             catalog = request("GET", "/v1/targets", origin=ORIGIN, grant=pair["grant"])
             if catalog["models"]:
                 raise RuntimeError("Expected an empty first-run catalog")
@@ -174,7 +174,7 @@ assistant:
             if (config.read_bytes(), keyfile.read_bytes(), (data / ".service-id").read_bytes()) != original:
                 raise RuntimeError("Desktop restart changed personal data")
             request("GET", "/v1/targets", origin=ORIGIN, grant=pair["grant"], status=403)
-            pair = request("POST", "/v1/connect", origin=ORIGIN)
+            pair = request("POST", "/v1/connect", {"models": True}, origin=ORIGIN)
             access = {"origin": ORIGIN, "grant": pair["grant"]}
             catalog = request("GET", "/v1/targets", **access)
             call = {"operationId": "desktop", "callId": "one", "connectionId": pair["connectionId"],

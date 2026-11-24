@@ -7,6 +7,7 @@ from resolver.configuration_schema import validate_instance_model_settings
 from resolver.errors import ConfigResolverError
 
 from .configuration import update_settings
+from .form_fields import TEMPERATURE_HELP, TOP_P_HELP, form_field
 from .model_form import FormError, PROVIDERS
 
 
@@ -33,15 +34,18 @@ def read_catalog(body):
 def render_instance(model, overrides, revision):
     key = escape(model["id"], quote=True)
     fields = []
-    for name, label, minimum, maximum in (("temperature", "Temperature", "0", "2"), ("topP", "Top P", "0.000001", "1")):
+    for name, label, minimum, maximum, help_text in (("temperature", "Temperature", "0", "2", TEMPERATURE_HELP),
+                                                     ("topP", "Top P", "0.000001", "1", TOP_P_HELP)):
         inherited = model["sampling"].get(name, "Provider default")
-        value = escape(str(overrides.get(name, "")), quote=True)
-        fields.append(f'<label>{label}<input type="number" step="any" min="{minimum}" max="{maximum}" '
-                      f'name="{name}" value="{value}" placeholder="{inherited}"><small>Instance setting: {inherited}</small></label>')
+        fields.append(form_field(name, label, help_text, kind="number", value=overrides.get(name, ""),
+                                 attrs=f'step="any" min="{minimum}" max="{maximum}" placeholder="{inherited}"',
+                                 note=f"Instance setting: {inherited}"))
     return f'''<form class="panel profile-editor" action="/instance-model" method="post">
 <input type="hidden" name="profile" value="{key}"><input type="hidden" name="revision" value="{revision}">
-<p>{escape(PROVIDERS[model["provider"]])} · {key}</p><div class="fields">{"".join(fields)}</div>
-<p class="hint">Leave a field empty to inherit the instance setting. This model runs on the connected instance.</p>
+<p class="model-meta">{escape(PROVIDERS[model["provider"]])} · {key}</p>
+<fieldset><legend>Personal sampling settings</legend>
+<p class="hint">Leave either field empty to use the instance setting. The instance manages the provider connection, reasoning settings and limits.</p>
+<div class="fields">{"".join(fields)}</div></fieldset>
 <footer><button class="primary">Save settings</button><a href="/">Back to settings</a></footer></form>'''
 
 

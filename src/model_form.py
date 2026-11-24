@@ -4,7 +4,6 @@ import hashlib
 import math
 import os
 import re
-from html import escape
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from urllib.parse import urlsplit
@@ -16,6 +15,7 @@ from lodeon_model_runtime.profiles import (
 )
 
 from .configuration import ConfigError, config_revision, read_model_environment, update_settings
+from .form_fields import DEFAULT_HELP, TEMPERATURE_HELP, TOP_P_HELP, form_field
 
 
 class FormError(ValueError):
@@ -237,41 +237,46 @@ def save_key(config, fields):
 
 def render_fields(values):
     """Render the same editable values for a fresh profile, a saved profile or a rejected edit."""
-    def field(name, label, *, options=None, kind="text", attrs=""):
-        current = str(values.get(name, ""))
-        if options is not None:
-            choices = "".join(f'<option value="{escape(v, quote=True)}"{" selected" if current == v else ""}>{escape(t)}</option>'
-                              for v, t in options.items())
-            control = f'<select name="{name}">{choices}</select>'
-        elif name == "description":
-            control = f'<textarea name="{name}" rows="2">{escape(current)}</textarea>'
-        else:
-            control = f'<input type="{kind}" name="{name}" value="{escape(current, quote=True)}" {attrs}>'
-        return f'<label>{escape(label)}{control}</label>'
+    def field(name, label, help_text, **options):
+        return form_field(name, label, help_text, value=values.get(name, ""), **options)
 
     def choices(items):
         return {x: x for x in items}
 
+    limit_help = {
+        "maxOutputTokens": "Maximum tokens a single completion may generate.",
+        "maxInputCharacters": "Maximum input size in characters for a model call.",
+        "modelRequestTimeoutSeconds": "How long to wait for one provider request.",
+        "maxToolCallsPerTurn": "Maximum number of tool calls allowed in one Assistant turn.",
+        "maxUserMessageCharacters": "Maximum length of a single user message in characters.",
+        "maxChatRequestsPerMinute": "Maximum chat requests per minute for this profile.",
+    }
+    rate_help = {
+        "inputPerMillionTokens": "Price for one million ordinary input tokens.",
+        "outputPerMillionTokens": "Price for one million generated output tokens.",
+        "cachedInputPerMillionTokens": "Price for reading one million cached input tokens.",
+        "cacheWritePerMillionTokens": "Price for writing one million tokens to the prompt cache.",
+    }
     credentials = {"auto": "Use provider default", "personal": "Use a personal API key", "none": "No API key"}
     if values.get("credential") == "inline":
         credentials["inline"] = "Keep the configured key"
     return {
-        "basic": field("label", "Display name", attrs='required placeholder="My Ollama"') +
-                 field("provider", "Provider", options=PROVIDERS) +
-                 field("model", "Provider model name", attrs='required placeholder="gemma4:12b"') +
-                 field("endpoint", "Endpoint URL or variable", attrs='placeholder="Provider default"') +
-                 field("credential", "Provider authentication", options=credentials) +
-                 field("description", "Description"),
-        "default_checked": "checked" if values.get("default") == "on" else "",
-        "generation": field("temperature", "Temperature", kind="number", attrs='min="0" max="2" step="any"') +
-                      field("topP", "Top P", kind="number", attrs='min="0.000001" max="1" step="any"') +
-                      field("reasoningEffort", "Reasoning effort", options={"": "Provider default", **choices(("none","minimal","low","medium","high","xhigh","max"))}) +
-                      field("cache", "Prompt cache retention", options={"off": "Caching disabled", **choices(("default","5m","1h","24h"))}) +
-                      field("keepAlive", "Ollama keep-alive", attrs='placeholder="e.g. 5m"'),
-        "limits": "".join(field(k, label, kind="number", attrs='min="1" step="1"') for k, label in LIMITS.items()),
-        "pricing": field("currency", "Currency", attrs='maxlength="3" placeholder="USD"') +
-                   "".join(field(k, label, kind="number", attrs='min="0" step="any"') for k, label in RATES.items()),
-        "identifiers": field("id", "Profile ID", attrs="readonly" if values.get("original") else 'placeholder="Generated from display name"') +
-                       field("endpointSource", "Endpoint source", options={"baseURL": "URL", "baseURLEnv": "Environment variable"}) +
-                       field("keyVariable", "API key variable", attrs='placeholder="Assigned automatically"'),
+        "basic": field("label", "Display name", "Name shown in the Assistant model selector.", attrs='required placeholder="My Ollama"') +
+                 field("provider", "Provider", "Choose the API used by the model server.", options=PROVIDERS) +
+                 field("model", "Provider model name", "Enter the exact identifier used by the provider or the name from ollama list.", attrs='required placeholder="gemma4:12b"') +
+                 field("endpoint", "Endpoint URL or variable", "For local Ollama, leave blank or enter http://127.0.0.1:11434. For an OpenAI-compatible API, enter its base URL. To use a variable, select Environment variable under Endpoint source.", attrs='placeholder="Provider default"') +
+                 field("credential", "Provider authentication", "OpenAI and Anthropic require a key. For other services that require one, choose a personal API key. Save the model to enter the key.", options=credentials) +
+                 field("description", "Description", "Describe the tasks this model handles well. This text appears in Model information.", kind="textarea", wide=True, attrs='rows="4"'),
+        "default_field": field("default", "Use as my default model", DEFAULT_HELP, kind="checkbox", attrs="checked" if values.get("default") == "on" else ""),
+        "generation": field("temperature", "Temperature", TEMPERATURE_HELP, kind="number", attrs='min="0" max="2" step="any"') +
+                      field("topP", "Top P", TOP_P_HELP, kind="number", attrs='min="0.000001" max="1" step="any"') +
+                      field("reasoningEffort", "Reasoning effort", "Request a reasoning level on models that support it. Leave at provider default otherwise.", options={"": "Provider default", **choices(("none","minimal","low","medium","high","xhigh","max"))}) +
+                      field("cache", "Prompt cache retention", "Choose how long the provider may keep reusable prompt input when it supports caching.", options={"off": "Caching disabled", **choices(("default","5m","1h","24h"))}) +
+                      field("keepAlive", "Ollama keep-alive", "How long Ollama should keep the model loaded after a request, for example 5m.", attrs='placeholder="e.g. 5m"'),
+        "limits": "".join(field(k, label, limit_help[k], kind="number", attrs='min="1" step="1"') for k, label in LIMITS.items()),
+        "pricing": field("currency", "Currency", "Three-letter currency code for the rates below, for example USD.", attrs='maxlength="3" placeholder="USD"') +
+                   "".join(field(k, label, rate_help[k], kind="number", attrs='min="0" step="any"') for k, label in RATES.items()),
+        "identifiers": field("id", "Profile ID", "Stable identifier used in configuration and broker assignments. Leave blank when creating a model to derive it from the display name.", attrs="readonly" if values.get("original") else 'placeholder="Generated from display name"') +
+                       field("endpointSource", "Endpoint source", "Use a literal URL or the name of a variable defined in the local models/.env file.", options={"baseURL": "URL", "baseURLEnv": "Environment variable"}) +
+                       field("keyVariable", "API key variable", "Name of the entry in models/.env that holds the key. Leave blank to let the Customizer choose a name.", attrs='placeholder="Assigned automatically"'),
     }

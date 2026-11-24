@@ -69,13 +69,22 @@ class TransportTest(unittest.TestCase):
         self.assertIn("Enter an HTTPS instance URL", html)
         self.assertIn(f'value="{address}"', request("GET", "/")[1])
         server.set_models(LocalModels.load(config, identity))
-        self.assertEqual(request("POST", "/v1/connect", origin=origin)[0], 200)
+        status, result = request("POST", "/v1/connect", origin=origin, payload={"models": False})
+        self.assertEqual(status, 200)
+        basic = json.loads(result)["grant"]
+        for method, route in (("GET", "catalog"), ("GET", "targets"), ("POST", "instance-models"),
+                              ("POST", "broker"), ("POST", "invoke"), ("POST", "cancel")):
+            with self.subTest(route=route):
+                self.assertEqual(request(method, "/v1/" + route, origin=origin, token=basic)[0], 403)
+        self.assertEqual(request("POST", "/v1/disconnect", origin=origin, token=basic)[0], 204)
+        for invalid in (None, {}, {"models": 1}, {"models": True, "git": True}):
+            self.assertEqual(request("POST", "/v1/connect", origin=origin, payload=invalid)[0], 400)
         for other in ("http://localhost:7015", "http://127.0.0.1:7014", "https://localhost:7014"):
             with self.subTest(origin=other):
                 self.assertEqual(request("POST", "/v1/connect", origin=other)[0], 403)
 
         local = f"http://127.0.0.1:{server.server_port}"
-        token = json.loads(request("POST", "/v1/connect", origin=origin)[1])["grant"]
+        token = json.loads(request("POST", "/v1/connect", origin=origin, payload={"models": True})[1])["grant"]
         shared = {"models": [{"id": "worker", "label": "Hosted model", "provider": "ollama", "sampling": {"topP": 1}}]}
         def share(grant):
             return request("POST", "/v1/instance-models", origin=origin, payload=shared, token=grant)
@@ -89,6 +98,13 @@ class TransportTest(unittest.TestCase):
         broker = broker_form.values_for("", {}, None)
         broker.update(label="Catalog broker", members="worker | Hosted model", objective="Choose a worker",
                       revision=revision(), **{"query-strategy": "routed"})
+        for task in broker_form.TASKS:
+            broker[f"{task}-workers"] = "worker"
+        for task in ("plan", "query"):
+            response, body = request("POST", "/broker", origin=local, form={**broker, f"{task}-workers": ""})
+            self.assertEqual(response, 400)
+            self.assertIn(f"to {task} before saving", body)
+            self.assertEqual(broker["revision"], revision())
         self.assertEqual(request("POST", "/broker", origin=local, form=broker)[0], 303)
         self.assertEqual(share(token)[0], 403)
         prompt_page = request("GET", "/brokers/edit/catalog-broker")
@@ -249,7 +265,7 @@ class TransportTest(unittest.TestCase):
                 conn.close()
 
         self.assertEqual(request("connect", Origin="https://foreign.example")[0], 403)
-        status, pair = request("connect")
+        status, pair = request("connect", payload={"models": True})
         self.assertEqual(status, 200, pair)
         token = pair["grant"]
         self.assertEqual(request("targets", token, Host="foreign.example")[0], 403)

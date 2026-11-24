@@ -10,6 +10,7 @@ from uuid import uuid4
 @dataclass
 class Grant:
     origin: str
+    models_allowed: bool
     profiles: frozenset
     ends: float
     connection: str = field(default_factory=lambda: uuid4().hex)
@@ -31,16 +32,16 @@ class Grants:
     def permits_origin(self, origin):
         return self.origin is not None and self.origin == origin
 
-    def connect(self, origin):
+    def connect(self, origin, *, models):
         with self.lock:
             if not self.permits_origin(origin):
                 raise ValueError("denied")
             now = time.monotonic()
             self.active = {k: v for k, v in self.active.items() if v.ends > now}
-            if len(self.active) >= 32 or self.calls <= 0 or self.tokens <= 0:
+            if len(self.active) >= 32 or (models and (self.calls <= 0 or self.tokens <= 0)):
                 raise ValueError("busy")
             token = secrets.token_urlsafe(32)
-            grant = Grant(origin, self.profiles, now + self.lifetime)
+            grant = Grant(origin, models, self.profiles if models else frozenset(), now + self.lifetime)
             self.active[token] = grant
             return {"grant": token, "connectionId": grant.connection, "expiresInSeconds": self.lifetime}
 

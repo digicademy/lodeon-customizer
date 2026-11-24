@@ -557,3 +557,52 @@ rows offer sampling settings. Each broker task has draggable worker or candidate
 and fallback areas, plus keyboard controls. A Brave desktop check exercised
 dragging, removal, ordering, saving and reopening a mixed broker, and the layout
 at 320 pixels. The existing broker policy and delegation wire format are unchanged.
+
+The local GUI now follows the Editor's square controls, top bar, metadata
+fields and day/night colours. The header contains the editable instance URL and its save action. Field labels have expandable help and descriptive
+text areas span both form columns. Broker hints appear beneath selected
+members. New task assignments require an explicit choice in the form and on
+submission. The package checks cover rejected empty fixed and routed tasks.
+
+## Proposed next settings areas
+
+These are design proposals for review. The current desktop capability is personal models. Each new capability needs its own permission and a separately approved Core interface before it can be connected to an instance.
+
+### Knowledge Graphs
+
+Core now declares the instance permission with `knowledgeGraph.customizeKGs` under the master switch `customizer.enabled`. The current dialog displays this permission. The following steps deliver graph configuration and exchange.
+
+A researcher should be able to describe a graph in the Customizer, check its files, and explicitly offer it to a LODEON tab. For example, a Mendelssohn graph on a laptop may be reachable only from that laptop. Its endpoint must be entered as seen by the local app.
+
+| Form section | Contents and ownership |
+| --- | --- |
+| Profile | Stable ID, label and optional full-width description. Write the existing `knowledgeGraph.profiles.<id>` structure in the selected settings folder. A story selects a graph by reference. Instance-wide defaults, visibility and access stay with the operator. |
+| SPARQL and context | Endpoint, GET or POST, Assistant schema JSON and an explicit ordered ontology file list. Select files relative to the settings folder, validate their contents and report missing references before enabling the profile. Personal endpoint credentials, if needed, require a separately defined local credential reference. |
+| Assistant and search | Optional prompt registry, follow-up registry and competency questions. Expose the existing full-text settings for QLever and Virtuoso when enabled, including tools, limits, language, score, query guidance and reidentification patterns. |
+| Editor tools | Optional visual query builder Turtle configuration under `nodes.sparql.profiles.<id>` and Graph Explorer settings under `nodes.graphExplorer.profiles.<id>`. Use the current Node schemas for labels, traversal, display and popups. |
+| Instance-owned features | Existing graph access groups and external MCP allowlists belong to the instance. A personal definition cannot grant either. Report any unsupported or unresolved dependency when opening an existing profile. Only bind optional external tools where the instance already authorizes the same tool and its parameters. |
+
+1. **Author and validate locally.** Open an existing profile or create one with the form. Reuse the Core schema and resource validators. Verify a minimal graph and a graph with ontologies and Node resources through open, edit, save and reopen. An endpoint check is an explicit read-only action.
+2. **Approve the runtime boundary.** Today Core resolves an installed profile ID to its server-side SPARQL endpoint. A local YAML file alone cannot register a running graph. For personal graphs, propose keeping orchestration, query validation, turn evidence and result handling in Core, with a distinct permission for read-only query execution by the Customizer against the locally configured endpoint. Publish only the selected graph’s permitted schema/context and required results. Make this data flow visible before sharing: a hosted Assistant and its selected model may receive research data. Agree which file contents may leave the computer and how disconnected targets behave before implementation.
+3. **Connect one vertical slice.** List the personal graph alongside authorized instance graphs, distinguish their identities even if labels or IDs coincide, select it for a story, then run one Assistant query and one Editor query against the same target. Keep the target reference on its Nodes. Disconnect must clearly mark that target unavailable; reconnect must restore it. Extend to optional graph features only when their declared resources and authorization can be supplied.
+
+**Decision requested:** should the first deliverable be a local profile editor followed by delegated execution for personal endpoints, including private and loopback graphs? Hosted graph execution continues to use the existing instance broker.
+
+### Git import and export
+
+Plan a separate instance YAML section for project transfer, outside Assistant and Knowledge Graph settings. Agree its keys when scoping Git transfer. Git credentials and per-story bindings stay on the user-controlled side. ZIP import and export stay independently available.
+
+**Proposed division of responsibility:** the Customizer manages personal provider connections and performs Git transfers directly with the provider. The Editor owns the story, its canonical project snapshot and the actions **Import from Git** and **Save to Git**. A user can choose a dedicated credential for one story or reuse a local connection authorized for several repositories.
+
+| Stored locally | Example | Owner |
+| --- | --- | --- |
+| Provider connection and credential | “Research GitLab”, host, token reference and allowed repository access | Customizer; the secret stays local and is sent only to its configured provider. |
+| Story binding | Connection reference, repository, branch, project directory and last loaded or written commit | This story’s local Editor workspace. Keep the binding outside the portable project, kept chats and ZIP. Importing another person's story confers no permission to write. |
+| Versioned files | `project.lodeon.json`, derived `story.md`, referenced assets and explicitly included chat files | The chosen directory of the repository. Reuse the current ZIP serializer and importer for the project data. |
+
+1. **Connect and bind.** Define a provider account in the Customizer. In the open story select its connection, repository, branch and directory. For example, two stories can share “Research GitLab” while using different repositories or different directories. Only the user’s browser and local app handle the binding and payloads. The hosted backend receives no Git credentials, repository metadata or transfers.
+2. **Import.** Pick a revision, read its project files through the local app, validate the complete snapshot with the existing importer, and open the story only after validation succeeds. Remember the exact revision as the local base. ZIP stays available independently.
+3. **Export.** Prepare a consistent snapshot in the Editor and show the repository, branch, directory, changed files and a commit message. Authorize this specific write in the local app. Update only project-owned files against the expected base revision. If the branch advanced, show the conflict and let the user reload and review. Autosave stays local.
+4. **First acceptance.** Import one story, change text and an asset, save one explicit commit, re-import it and verify the roundtrip. Exercise two stories with different bindings, a concurrent branch update and a revoked credential. No production repository is needed for acceptance.
+
+**Decisions requested:** approve the split between local credentials/transfer and per-story binding/actions, then choose the first provider and credential mechanism. GitLab with a repository-scoped HTTPS token is a candidate for the first workflow. Multi-provider support and OS credential-store integration require separate decisions.

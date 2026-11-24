@@ -20,11 +20,11 @@ If your browser displays a development download as text, use **Save link as** on
 
 ## Get the app and connect your first model
 
-1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **Setup and user guide** opens these instructions. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
+1. In the Assistant, open **Settings → Customize Workbench**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **User Guide** opens these instructions. If the menu entry is missing, check with your instance operator whether Customizer connections are enabled for your session.
 2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
-3. The app opens a **local settings page** in your default browser. Copy the instance URL from your LODEON tab, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
+3. The app opens a **local settings page** in your default browser. Enter the URL from your LODEON tab under **Instance connection** in the header, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
 4. On first launch the model list is empty. Choose **Models → Personal models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
-5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
+5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Once the status turns green, close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
 | Your computer | Platform | Open after extraction |
 | --- | --- | --- |
@@ -35,6 +35,8 @@ If your browser displays a development download as text, use **Save link as** on
 | Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON-Customizer` |
 
 On a Mac, **Apple menu → About This Mac** identifies the chip.
+
+You can change the instance in the header from any model or broker form. Saving the instance returns to the overview. If a form has unsaved edits, you can cancel the switch and finish editing. Choose the **ⓘ** beside a field label to read its help. The same control works with the keyboard.
 
 ## Configure a personal model
 
@@ -63,7 +65,7 @@ On first launch the app uses the following default folder.
 
 ## Customize an instance model
 
-1. Save the instance address and connect from **Settings → Connect personal models** in that LODEON tab.
+1. Save the instance address and connect from **Settings → Customize Workbench** in that LODEON tab.
 2. Open **Models → Instance models → Refresh list** in the Customizer. Choose **Edit settings** beside a model.
 3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**, then disconnect and reconnect the LODEON tab.
 4. Select the same instance model in LODEON. **Model information** shows the effective values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
@@ -72,13 +74,15 @@ The Customizer saves these overrides in `instanceModelSettings` in your local `c
 
 ## Configure a broker
 
-Choose **Models → Personal models → Add broker**. Give it a name and a routing objective. Select the local and connected instance models under **Broker members** and describe what each one does well. You can also enter an offline member’s ID manually. Choose the router model. Under **Task routing**, drag a selected model into **Worker** for a fixed task or into **Candidates** for a routed task. Drop models into **Fallbacks** in the order they should be tried. Drag an assignment between areas to move it, onto another chip to reorder it, or back to **Selected models** to remove it from that task. You can also select a model and choose **Assign**, use **←** to move it earlier, or **×** to remove it.
+Choose **Models → Personal models → Add broker**. Select the local and connected instance models under **Broker members**. Each selected member reveals its routing hint. You can also enter an offline member’s ID manually. Choose the router model and describe its routing objective.
+
+New tasks start empty. Under **Task routing**, drag one selected model into **Worker** for each fixed task, or one or more into **Candidates** for a routed task. Add **Fallbacks** in the order they should be tried, if needed. Drag an assignment between areas to move it, onto another chip to reorder it, or back to **Selected models** to remove it. You can also select a model and choose **Assign**, use **←** to move it earlier, or **×** to remove it. When switching a task with several candidates to **Fixed**, choose its single worker explicitly.
 
 Choose **Save broker** to apply your assignments. If any task uses routing, enter your Markdown in **Routing prompt** on the broker’s edit page, then choose **Save prompt**. For example, `Choose one of {{candidates}} for {{task}} given {{question}}. Return the model ID.` The form saves the registry entry and Markdown in the selected folder. A fixed-only broker is ready after saving its policy. Reconnect your LODEON tab and select the broker. Use **Edit** beside the broker to revisit these settings.
 
 ## Reconnect, disconnect or quit
 
-Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. After an Editor reload, a local configuration change or an app restart, return to **Settings → Connect personal models** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
+Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. After an Editor reload, a local configuration change or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
 
 If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
 
@@ -129,7 +133,7 @@ open vendor/lodeon-customizer/dist/local/LODEON-Customizer.app
 
 Each local development build puts the tested app beside its archive and replaces the same-named copy in that output folder. Your personal settings live in the selected settings folder. Both Intel and Apple Silicon use the same command.
 
-With native Python 3.12 you can also run the build script with `python3.12` or, on Windows, `py -3.12`. On Windows and Linux, open the executable inside the output folder’s `LODEON-Customizer` directory. To test with the Assistant, enable `assistant.personalModels.enabled` on your instance, save its address in the app, then choose **Settings → Connect personal models → Connect** in that LODEON tab.
+With native Python 3.12 you can also run the build script with `python3.12` or, on Windows, `py -3.12`. On Windows and Linux, open the executable inside the output folder’s `LODEON-Customizer` directory. To test with the Assistant, enable both `customizer.enabled` and `assistant.customizeModels` on your instance, save its address in the app, then choose **Settings → Customize Workbench → Connect** in that LODEON tab.
 
 ## Publish latest
 

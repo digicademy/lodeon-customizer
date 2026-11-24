@@ -40,7 +40,7 @@ instance. The existing browser evidence and its limits are in the roadmap.
 
 | Method and path | Request | Result |
 | --- | --- | --- |
-| POST `/v1/connect` | Empty request from the saved instance's origin | `200 {connectionId, grant, expiresInSeconds}` |
+| POST `/v1/connect` | JSON `{models: boolean}` from the saved instance’s origin. False grants only connection and disconnection. True permits the model routes. | `200 {connectionId, grant, expiresInSeconds}` |
 | GET `/v1/catalog` | Local bearer grant | `200 {revision, models}` |
 | GET `/v1/targets` | Local bearer grant | Models, broker summaries and optional default |
 | POST `/v1/instance-models` | Grant and `{models: [{id, label, provider, sampling}]}` from the current authorized instance status | Per-model sampling overrides for those IDs. Sampling accepts only optional temperature and topP. The roster expires with its grant. |
@@ -93,14 +93,13 @@ browser starts the ordinary operation and relays calls concurrently. The new
 base path is `/api/assistant/delegation/v1`. Requests to Core use the existing
 instance authentication. The exchange additionally requires an exact same-origin
 Editor request. A disabled Assistant always takes precedence.
-The existing Assistant status exposes a `personalModelsAllowed` boolean for
-this browser session independently of the installed-model count. Service
+Status exposes the effective session permissions in `customizer: {allowed, models, knowledgeGraphs}` independently of the installed-model count. The Editor requests the model scope only when `models` is true. A connection-only grant is denied on every local model route. The KG permission is reserved for the planned KG capability. Service
 addresses, other users' offers and local pairing state stay out of status.
 
 1. **Reserve.** `POST /operations` accepts exactly one selection (personal offer, personal broker or installed model ID in `instance`) and
    returns `201 {operationId, operationToken, expiresInSeconds}`. Check the
-   operator's opt-in `assistant.personalModels.enabled` (default false) and
-   its optional `access.allowedGroups` using the existing central model
+   operator's opt-ins `customizer.enabled` and `assistant.customizeModels` (both default false) and
+   the optional `customizer.access.allowedGroups` using the existing central model
    access policy, plus the ordinary KG and operation permissions. An installed
    model is unnecessary. Bound the number, size and lifetime of reservations,
    including anonymous requests. Optional `instanceSettings` maps directly
