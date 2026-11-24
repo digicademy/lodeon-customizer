@@ -22,7 +22,8 @@ If your browser displays a development download as text, use **Save link as** on
 
 1. In the Assistant, open **Settings → Customize Workbench**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **User Guide** opens these instructions. If the menu entry is missing, check with your instance operator whether Customizer connections are enabled for your session.
 2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
-3. The app opens a **local settings page** in your default browser. Enter the URL from your LODEON tab under **Instance connection** in the header, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
+3. The app opens a **local settings page** in your default browser. Enter the URL from your LODEON tab under **Instance connection** in the header, including its deployment path, and choose **Save**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
+   Use the moon or sun button in the header to switch between the Editor’s day and night themes. The app starts with your system preference and remembers your choice in this browser across pages and restarts.
 4. On first launch the model list is empty. Choose **Models → Personal models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
 5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Once the status turns green, close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
@@ -88,7 +89,7 @@ If **Connect** fails, open the Customizer again. Its settings page is at `http:/
 
 If the Linux desktop cannot open the browser automatically, open <http://127.0.0.1:8765/> in your browser. If the page is unreachable, run `./LODEON-Customizer --no-browser` from the extracted app folder, leave the terminal open and reload the page.
 
-Choose **Disconnect** to release just the current tab. Choose **Quit Customizer** on the local settings page to stop the app. Closing the local settings tab leaves it running. Your local configuration is available the next time you start it.
+Choose **Disconnect** to release just the current tab. Choose **Quit** in the local settings header to stop the app. Closing the local settings tab leaves it running. Your local configuration is available the next time you start it.
 
 The hosted instance owns orchestration, tools, SPARQL and final synthesis. The connected tab passes prepared model calls to the Customizer and returns their results to Core. A mixed broker uses the same connection for its local workers. Core calls its authorized instance workers directly. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
 
@@ -130,6 +131,8 @@ From the Core root on macOS, build and open the verified app with
 uv run --no-project --python 3.12 python vendor/lodeon-customizer/release/build.py --core . --output vendor/lodeon-customizer/dist/local &&
 open vendor/lodeon-customizer/dist/local/LODEON-Customizer.app
 ```
+
+The build compiles the desktop interface with the selected Core checkout’s Tailwind stylesheet, theme control and locked frontend tools. It installs Node and npm in the private build environment. The installed app works offline without a frontend toolchain.
 
 Each local development build puts the tested app beside its archive and replaces the same-named copy in that output folder. Your personal settings live in the selected settings folder. Both Intel and Apple Silicon use the same command.
 

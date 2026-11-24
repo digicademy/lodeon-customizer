@@ -21,6 +21,7 @@
   function button(text, label, action) {
     const element = document.createElement("button");
     element.type = "button";
+    element.className = "ld-button";
     element.textContent = text;
     element.setAttribute("aria-label", label);
     element.title = label;
@@ -114,7 +115,7 @@
         for (const item of palette.children) item.setAttribute("aria-pressed", String(item.dataset.model === selected));
         zones.forEach(renderZone);
       });
-      chip.className = "pool-chip";
+      chip.classList.add("pool-chip");
       chip.draggable = true;
       chip.dataset.model = id;
       chip.setAttribute("aria-pressed", String(selected === id));

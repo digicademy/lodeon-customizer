@@ -28,7 +28,8 @@ jobs:
           tar -xzf core.tar.gz --strip-components=1 -C core
           echo "$sha" > core/CORE-REVISION
           tar -czf core-inputs.tar.gz -C core CORE-REVISION LICENSE api/pyproject.toml api/lodeon_model_runtime \
-            config/config.yml config/resolver resources/branding editor/public/assets/{apple-touch-icon.png,favicon.ico}
+            config/config.yml config/resolver resources/branding editor/public/assets/{apple-touch-icon.png,favicon.ico} \
+            editor/package{,-lock}.json editor/{postcss,tailwind}.config.js editor/src/styles.css editor/src/ui/{theme,icons}.ts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: core-inputs

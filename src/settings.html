@@ -10,8 +10,8 @@ $notice
       <div class="panel-head">
         <h3 id="personal-heading">Personal models</h3>
         <div class="actions">
-          <a class="button" href="/models/new">Add model</a>
-          <a class="button" href="/brokers/new">Add broker</a>
+          <a class="ld-button" href="/models/new">Add model</a>
+          <a class="ld-button" href="/brokers/new">Add broker</a>
         </div>
       </div>
       $models
@@ -19,20 +19,22 @@ $notice
     <section class="panel" aria-labelledby="instance-heading">
       <div class="panel-head">
         <h3 id="instance-heading">Instance models</h3>
-        <a class="button" href="/">Refresh list</a>
+        <a class="ld-button" href="/">Refresh list</a>
       </div>
       $instance_models
     </section>
   </section>
-  <aside class="panel files" aria-labelledby="files-heading">
-    <div class="panel-head"><h2 id="files-heading">$folder_icon Local files</h2></div>
-    $folder_form
-    <dl>
-      <dt>Model configuration</dt>
-      <dd><p>Model and broker forms save here.</p><code dir="ltr">$config_path</code></dd>
-      <dt>Provider keys</dt>
-      <dd><p>Keys entered in the model editor are stored here.</p><code dir="ltr">$keys_path</code></dd>
-    </dl>
-    <p class="panel-foot">$lock_icon <span>Provider keys stay on this computer until a model call sends one to its provider.</span></p>
+  <aside class="model-sections files" aria-labelledby="files-heading">
+    <h2 id="files-heading">$folder_icon Local files</h2>
+    <div class="panel">
+      $folder_form
+      <dl>
+        <dt>Model configuration</dt>
+        <dd><p>Model and broker forms save here.</p><code dir="ltr">$config_path</code></dd>
+        <dt>Provider keys</dt>
+        <dd><p>Keys entered in the model editor are stored here.</p><code dir="ltr">$keys_path</code></dd>
+      </dl>
+      <p class="panel-foot">$lock_icon <span>Provider keys stay on this computer until a model call sends one to its provider.</span></p>
+    </div>
   </aside>
 </div>

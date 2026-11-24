@@ -1,161 +1,101 @@
-/* Native app counterpart of editor/src/styles.css: day/night, top bar and metadata forms. */
-:root {
-  color-scheme: light dark;
-  --lodeon-bg: #fff; --lodeon-panel: #fff; --lodeon-control: #fff; --lodeon-surface: #fafafa;
-  --lodeon-text: #000; --lodeon-muted: #767676; --lodeon-border: #d6d6d6;
-  --lodeon-accent: #e25a5a; --lodeon-danger: #b42318; --lodeon-success: #137333;
-  --lodeon-focus: rgb(226 90 90 / 35%);
-  font: 100%/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--lodeon-bg); color: var(--lodeon-text);
-  font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --lodeon-bg: #000; --lodeon-panel: #080808; --lodeon-control: #101318; --lodeon-surface: #1f2328;
-    --lodeon-text: #fff; --lodeon-muted: #a7a7a7; --lodeon-border: #2e3238;
-    --lodeon-danger: #ff9b90; --lodeon-success: #7bd88f; --lodeon-focus: rgb(212 162 70 / 40%);
+/* Compiled after the selected Core editor stylesheet with its Tailwind configuration. */
+body { @apply bg-lodeon-surface; }
+
+@layer components {
+  .brand-name { @apply ml-4 border-l border-lodeon-border pl-5 text-sm font-semibold text-lodeon-text; }
+  .customizer-topbar .ld-actions { @apply ml-0 min-w-max grow justify-between; }
+  .customizer-topbar .ld-utility-actions { @apply ml-auto; }
+  .customizer-topbar .instance-connection { @apply flex min-w-0 flex-[0_1_38rem] gap-2; }
+  .instance-label { @apply relative flex shrink-0 items-center gap-1; }
+  .instance-url { @apply min-h-9 min-w-0 flex-1 border border-lodeon-border bg-lodeon-control px-2 text-sm font-semibold text-lodeon-text outline-hidden focus:ring-2 focus:ring-[var(--lodeon-focus)]; }
+  .instance-label .field-help p { @apply absolute top-full left-0 z-10 mt-2 w-64 border border-lodeon-border bg-lodeon-panel p-3 shadow-lg; }
+  main { @apply mx-auto w-full max-w-7xl px-5 py-6 sm:px-8; }
+  .page-title { @apply mb-6; }
+  h1 { @apply text-3xl leading-tight font-bold text-lodeon-text; }
+  h2 { @apply flex items-center gap-2 text-base font-bold; }
+  h3, legend { @apply text-sm font-bold; }
+  .page-title p, .notice-page p { @apply mt-1 text-sm text-lodeon-muted; }
+  .workspace { @apply grid items-start gap-6 md:grid-cols-[minmax(0,2fr)_minmax(17rem,1fr)]; }
+  .model-sections { @apply grid min-w-0 gap-3; }
+  .panel { @apply min-w-0 border border-lodeon-border bg-lodeon-panel; }
+  .panel-head { @apply flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-lodeon-border px-4 py-2; }
+  .panel-body, .files dl, .model { @apply p-4; }
+  .panel-foot { @apply border-t border-lodeon-border bg-lodeon-surface px-4 py-3; }
+  .files .panel-foot { @apply flex items-start gap-2; }
+  .hint, .panel-foot, .panel-body p, .model small, dd p, p.panel-body, .field small, .field-help p { @apply text-xs leading-relaxed text-lodeon-muted; }
+  .actions, .input-row, .profile-editor footer { @apply flex flex-wrap items-center gap-2; }
+  .input-row > .field { @apply min-w-0 flex-1; }
+  .files .input-row, dd code, .hint { @apply mt-2; }
+  .files dt, .model-title { @apply text-sm font-semibold; }
+  .files dd + dt { @apply mt-4; }
+  dd code { @apply block bg-lodeon-surface p-2 text-xs wrap-anywhere select-all; }
+  .model-entry { @apply flex flex-wrap items-center justify-between gap-2 py-3; }
+  .model-title { @apply wrap-anywhere; }
+  .model + .model { @apply border-t border-lodeon-border; }
+  .ld-button.danger { @apply text-[var(--lodeon-danger)]; }
+  .ld-button:disabled { @apply cursor-default opacity-50; }
+  .back, .profile-editor footer > a:not(.ld-button) { @apply text-sm underline underline-offset-2 hover:text-lodeon-accent; }
+  .back { @apply mb-2 inline-block; }
+  .profile-editor { @apply max-w-4xl p-4 sm:p-6; }
+  .profile-editor + .profile-editor { @apply mt-4; }
+  .profile-editor fieldset { @apply min-w-0; }
+  .profile-editor legend { @apply mb-3; }
+  .profile-editor > .task-routing, .profile-editor > details, .profile-editor footer { @apply mt-5 border-t border-lodeon-border pt-4; }
+  .profile-editor footer { @apply gap-4; }
+  .profile-editor > fieldset + fieldset { @apply mt-6; }
+  .profile-editor details fieldset { @apply mt-4; }
+  .fields { @apply grid items-start gap-4 sm:grid-cols-2; }
+  .field, .field-caption { @apply min-w-0; }
+  .field.wide { @apply col-span-full; }
+  .fields + .field, .disclosure[open] > .field, .hint + .fields, .key-entry footer { @apply mt-3; }
+  .field-caption { @apply mb-1 flow-root; }
+  .field-caption > :is(label,strong) { @apply float-left mr-1.5; }
+  .field-caption label, .field-caption strong, [data-manual] { @apply text-xs leading-6 font-semibold wrap-anywhere; }
+  .field-help summary { @apply flex size-6 cursor-pointer list-none items-center justify-center text-lodeon-muted; }
+  .field-help summary::-webkit-details-marker { display: none; }
+  .field-help[open] summary, .field-help summary:hover { @apply text-lodeon-text; }
+  .field-help p { @apply clear-both my-1 border-l-2 border-lodeon-accent bg-lodeon-surface px-2.5 py-1; }
+  .field .ld-metadata-input { @apply block w-full min-w-0 focus:ring-2 focus:ring-[var(--lodeon-focus)]; }
+  .field input[readonly] { @apply bg-lodeon-surface; }
+  .check { @apply flex cursor-pointer items-center gap-2; }
+  .check input { @apply size-4 accent-[var(--lodeon-accent)]; }
+  .profile-editor > details > summary, .disclosure > summary { @apply cursor-pointer text-sm font-semibold; }
+  .feedback { @apply mb-4 border-l-4 border-[var(--lodeon-success)] bg-lodeon-panel px-4 py-3; }
+  .feedback.error { @apply border-[var(--lodeon-danger)]; }
+  .notice-page { @apply mx-auto mt-12 max-w-2xl p-6; }
+  .model-meta { @apply mb-4 text-sm text-lodeon-muted; }
+  .member-row { @apply border border-lodeon-border bg-lodeon-surface px-3 py-2; }
+  .member-row + .member-row { @apply border-t-0; }
+  .member-row .field-caption { @apply mb-0; }
+  .member-hint { @apply my-1 ml-6; }
+  .member-row:has(input[type=checkbox]:not(:checked)) .member-hint { @apply hidden; }
+  .broker-members > .disclosure { @apply mt-3; }
+  .member-palette { @apply sticky top-16 z-10 mt-3 border border-lodeon-border bg-lodeon-panel px-4 py-3; }
+  .route-chips { @apply mt-2 flex flex-wrap items-center gap-1.5 text-xs wrap-anywhere text-lodeon-muted; }
+  .pool-chip, .route-chip { @apply max-w-full cursor-grab wrap-anywhere; }
+  .pool-chip[aria-pressed=true] { @apply border-lodeon-accent text-lodeon-accent; }
+  .profile-editor .task-row { @apply mt-4 border border-lodeon-border px-4 pt-3 pb-4; }
+  .task-row legend { @apply mb-0 px-1.5; }
+  .strategy { @apply max-w-96; }
+  .strategy select { @apply w-auto; }
+  .task-zones { @apply mt-3 grid gap-3 sm:grid-cols-2; }
+  .route-zone { @apply min-h-20 min-w-0 border border-dashed border-lodeon-border bg-lodeon-surface p-2.5; }
+  .zone-heading { @apply flex flex-wrap items-start justify-between gap-1; }
+  .zone-heading > .field-caption { @apply flex-[1_1_7rem]; }
+  .zone-heading button, .pool-chip { @apply min-h-7 px-2 py-1 text-xs; }
+  .route-chip { @apply inline-flex items-center gap-1 border border-lodeon-border bg-lodeon-control py-0.5 pr-1 pl-2 text-lodeon-text; }
+  .route-chip button { @apply min-h-6 min-w-6 justify-center p-0; }
+  .drag-over { @apply outline-2 outline-lodeon-accent; }
+  [id$="-heading"] { @apply scroll-mt-20; }
+  @media (width < 48rem) {
+    .customizer-topbar { @apply static grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 px-3 py-2; }
+    .customizer-topbar .ld-actions { @apply col-start-2 row-start-1 gap-2; }
+    .customizer-topbar .instance-connection { @apply col-span-full row-start-2; }
+    .member-palette { @apply static; }
+    [id$="-heading"] { @apply scroll-mt-2; }
   }
-}
-* { box-sizing: border-box; }
-body, h1, h2, h3, p, form, dl, dd, fieldset, legend { margin: 0; }
-body { min-height: 100vh; }
-a { color: inherit; text-underline-offset: .2em; }
-a:hover { color: var(--lodeon-accent); }
-[hidden] { display: none !important; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-:is(button, a, summary, input, select, textarea, .route-zone):focus-visible {
-  outline: 2px solid var(--lodeon-focus); outline-offset: 1px;
-}
-.topbar {
-  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 1rem;
-  min-height: 4rem; padding: .25rem 1.25rem; background: var(--lodeon-panel);
-  border-bottom: 1px solid var(--lodeon-border); box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
-}
-.brand, .actions, .input-row, .profile-editor footer, .panel-head, .model-entry, h2 {
-  display: flex; align-items: center; gap: .5rem;
-}
-.brand { gap: 1rem; text-decoration: none; font-size: .875rem; font-weight: 600; }
-.brand img { display: block; width: auto; height: 2rem; max-width: 9rem; }
-.brand span, .instance-connection { padding-left: 1.25rem; border-left: 1px solid var(--lodeon-border); }
-.instance-connection { display: flex; gap: .5rem; align-items: end; min-width: 0; flex: 0 1 39rem; }
-.instance-connection .field { flex: 1; }
-.instance-connection .field-caption { margin: 0; }
-.instance-connection .field-caption :is(label, summary) { height: 1.25rem; line-height: 1.25rem; }
-.topbar .instance-connection input { min-height: 2rem; font-family: inherit; }
-.instance-connection button { min-height: 2rem; white-space: nowrap; padding-block: .25rem; }
-.topbar .quit { margin-left: auto; }
-button, a.button {
-  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  min-height: 2.25rem; padding: .45rem .75rem; border: 1px solid var(--lodeon-border);
-  border-radius: 0; background: var(--lodeon-control); color: var(--lodeon-text);
-  font-family: inherit; font-size: .875rem; line-height: 1.25; font-weight: 600;
-  text-decoration: none; cursor: pointer;
-}
-button:hover, a.button:hover { border-color: var(--lodeon-accent); color: var(--lodeon-accent); }
-button.primary { border-color: var(--lodeon-text); }
-button:disabled { opacity: .5; cursor: default; }
-button.danger, .button.danger { color: var(--lodeon-danger); }
-.icon { flex-shrink: 0; width: 1rem; height: 1rem; }
-main { width: min(76rem, 100%); padding: 1.5rem; margin-inline: auto; }
-.page-title { margin: .5rem 0 1.5rem; }
-h1 { font-size: clamp(1.875rem, 3vw, 2.25rem); line-height: 1.25; }
-h2 { font-size: 1rem; } h3, legend { font-size: .875rem; }
-.page-title p, .notice-page p { margin-top: .375rem; color: var(--lodeon-muted); }
-.workspace { display: grid; grid-template-columns: minmax(0, 2fr) minmax(17rem, 1fr); align-items: start; gap: 1.5rem; }
-.model-sections { display: grid; gap: 1rem; min-width: 0; }
-.panel { min-width: 0; border: 1px solid var(--lodeon-border); background: var(--lodeon-panel); }
-.panel-head { justify-content: space-between; flex-wrap: wrap; min-height: 3rem; padding: .65rem 1rem; border-bottom: 1px solid var(--lodeon-border); }
-.panel-body, .files dl, .model { padding: 1rem; }
-.panel-foot { padding: .65rem 1rem; background: var(--lodeon-surface); border-top: 1px solid var(--lodeon-border); }
-.files .panel-foot { display: flex; align-items: start; gap: .5rem; }
-.hint, .panel-foot, .panel-body p, .model small, dd p, .field small, .field-help p {
-  font-size: .75rem; line-height: 1.5; color: var(--lodeon-muted);
-}
-.actions, .profile-editor footer { flex-wrap: wrap; }
-.input-row { align-items: end; }
-.input-row > .field { flex: 1; }
-.files .input-row, dd code, .hint { margin-top: .5rem; }
-.files dt, .model-title { font-size: .875rem; font-weight: 600; }
-.files dd + dt { margin-top: 1rem; }
-dd code { display: block; padding: .5rem; background: var(--lodeon-surface); overflow-wrap: anywhere; font-size: .75rem; user-select: all; }
-.model-entry { justify-content: space-between; flex-wrap: wrap; padding-block: .75rem; }
-.model-title { overflow-wrap: anywhere; }
-.model + .model { border-top: 1px solid var(--lodeon-border); }
-.back { display: inline-block; margin-bottom: .5rem; font-size: .875rem; }
-.profile-editor { max-width: 58rem; padding: clamp(1rem, 2.5vw, 1.5rem); }
-.profile-editor + .profile-editor { margin-top: 1rem; }
-.profile-editor fieldset { min-width: 0; border: 0; padding: 0; }
-.profile-editor legend { padding: 0; font-weight: 700; margin-bottom: .75rem; }
-.profile-editor > .task-routing, .profile-editor > details, .profile-editor footer {
-  margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--lodeon-border);
-}
-.profile-editor footer { gap: 1rem; font-size: .875rem; }
-.profile-editor > fieldset + fieldset { margin-top: 1.5rem; }
-.profile-editor details fieldset { margin-top: 1rem; }
-.fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 1rem; }
-.field, .field-caption { min-width: 0; }
-.fields + .field, .disclosure[open] > .field, .hint + .fields, .key-entry footer { margin-top: .875rem; }
-.field.wide { grid-column: 1 / -1; }
-.field-caption { display: flow-root; margin-bottom: .25rem; }
-.field-caption > :is(label,strong) { float: left; margin-right: .375rem; }
-.field-caption label, .field-caption strong, [data-manual] { font-size: .75rem; font-weight: 600; line-height: 1.5rem; overflow-wrap: anywhere; }
-.field-help summary { display: flex; width: 1.5rem; height: 1.5rem; align-items: center; justify-content: center; list-style: none; cursor: pointer; color: var(--lodeon-muted); }
-.field-help summary::-webkit-details-marker { display: none; }
-.field-help[open] summary, .field-help summary:hover { color: var(--lodeon-text); }
-.field-help p { clear: both; margin: .25rem 0; padding: .375rem .625rem; border-left: 2px solid var(--lodeon-accent); background: var(--lodeon-surface); }
-input:not([type=checkbox]), select, textarea {
-  display: block; width: 100%; min-width: 0; min-height: 2.25rem; border-radius: 0;
-  border: 1px solid var(--lodeon-border); background: var(--lodeon-control); color: var(--lodeon-text); padding: .375rem .5rem;
-  font: 600 .875rem/1.25rem ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-input::placeholder, textarea::placeholder { color: #9ca3af; font-weight: 400; }
-textarea { min-height: 6rem; padding-block: .5rem; resize: vertical; }
-input[readonly] { background: var(--lodeon-surface); }
-.check { display: flex; align-items: center; gap: .5rem; cursor: pointer; }
-.check input { margin: 0; width: 1rem; height: 1rem; accent-color: var(--lodeon-accent); }
-.profile-editor > details > summary, .disclosure > summary { font-weight: 600; font-size: .875rem; cursor: pointer; }
-.feedback { margin-bottom: 1rem; border-left: 3px solid var(--lodeon-success); padding: .625rem 1rem; background: var(--lodeon-surface); }
-.feedback.error { border-color: var(--lodeon-danger); }
-.notice-page { max-width: 42rem; margin: 7vh auto; padding: 1.5rem; }
-.model-meta { margin-bottom: 1rem; color: var(--lodeon-muted); font-size: .875rem; }
-.member-row { padding: .5rem .75rem; background: var(--lodeon-surface); border: 1px solid var(--lodeon-border); }
-.member-row + .member-row { border-top: 0; }
-.member-row .field-caption { margin: 0; }
-.member-hint { margin: .25rem 0 .25rem 1.5rem; }
-.member-row:has(input[type=checkbox]:not(:checked)) .member-hint { display: none; }
-.broker-members > .disclosure { margin-top: .75rem; }
-.member-palette { position: sticky; top: 4rem; z-index: 1; margin-top: .75rem; padding: .75rem 1rem; border: 1px solid var(--lodeon-border); background: var(--lodeon-panel); }
-.route-chips { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; margin-top: .5rem; overflow-wrap: anywhere; font-size: .75rem; color: var(--lodeon-muted); }
-.pool-chip, .route-chip { max-width: 100%; overflow-wrap: anywhere; cursor: grab; }
-.pool-chip[aria-pressed="true"] { border-color: var(--lodeon-accent); box-shadow: inset 0 -2px var(--lodeon-accent); }
-.profile-editor .task-row { margin-top: 1rem; padding: .75rem 1rem 1rem; border: 1px solid var(--lodeon-border); }
-.task-row legend { margin: 0; padding-inline: .375rem; }
-.strategy { max-width: 24rem; }
-.strategy select { width: auto; }
-.task-zones { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; margin-top: .75rem; }
-.route-zone { min-width: 0; min-height: 5rem; padding: .625rem; border: 1px dashed var(--lodeon-border); background: var(--lodeon-surface); }
-.zone-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: .25rem; }
-.zone-heading > .field-caption { flex: 1 1 7rem; }
-.zone-heading button, .pool-chip { min-height: 1.75rem; padding: .25rem .5rem; font-size: .75rem; }
-.route-chip { display: inline-flex; align-items: center; gap: .25rem; padding: .125rem .25rem .125rem .5rem; border: 1px solid var(--lodeon-border); background: var(--lodeon-control); color: var(--lodeon-text); }
-.route-chip button { min-height: 1.5rem; min-width: 1.5rem; padding: 0; }
-.drag-over { outline: 2px solid var(--lodeon-accent); }
-[id$="-heading"] { scroll-margin-top: 5rem; }
-@media (max-width: 760px) {
-  main { padding: 1rem; }
-  .workspace { grid-template-columns: minmax(0,1fr); }
-  .topbar { position: static; display: grid; grid-template-columns: minmax(0,1fr) auto; padding: .75rem 1rem; gap: .5rem .75rem; }
-  .instance-connection { grid-column: 1 / -1; grid-row: 2; border: 0; padding: 0; }
-  .topbar .quit { grid-column: 2; grid-row: 1; }
-  .member-palette { position: static; }
-  [id$="-heading"] { scroll-margin-top: .5rem; }
-}
-@media (max-width: 580px) {
-  .fields, .task-zones { grid-template-columns: minmax(0,1fr); }
-  .brand { gap: .6rem; }
-  .brand img { width: 5.5rem; height: auto; }
-  .brand span { padding-left: .6rem; }
-  .wide-label { display: none; }
-  .input-row { flex-wrap: wrap; }
-  .input-row > .field { flex: 1 0 100%; }
+  @media (width < 30rem) {
+    .customizer-topbar .brand-name { @apply hidden; }
+    .customizer-topbar .ld-brand-wordmark { @apply h-6; }
+  }
 }

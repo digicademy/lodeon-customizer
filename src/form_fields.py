@@ -27,11 +27,11 @@ def form_field(name, label, explanation, *, value="", kind="text", options=None,
         if options is not None:
             choices = "".join(f'<option value="{escape(k, quote=True)}"{" selected" if current == k else ""}>{escape(v)}</option>'
                               for k, v in options.items())
-            element = f'<select {control} {attrs}>{choices}</select>'
+            element = f'<select class="ld-metadata-input" {control} {attrs}>{choices}</select>'
         elif kind == "textarea":
-            element = f'<textarea {control} {attrs}>{escape(current)}</textarea>'
+            element = f'<textarea class="ld-metadata-input ld-metadata-textarea" {control} {attrs}>{escape(current)}</textarea>'
         else:
-            element = f'<input type="{kind}" {control} value="{escape(current, quote=True)}" {attrs}>'
+            element = f'<input class="ld-metadata-input" type="{kind}" {control} value="{escape(current, quote=True)}" {attrs}>'
     hint = f'<small id="note-{key}">{escape(note)}</small>' if note else ""
     return (f'<div class="field{" wide" if wide else ""}"><div class="field-caption">{heading}'
             f'{field_help(name, label, explanation)}</div>{element}{hint}</div>')

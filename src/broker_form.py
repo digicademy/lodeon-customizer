@@ -127,9 +127,9 @@ def render_broker(form, choices, revision):
             explanation = ("If the selected model fails, try these models in the order shown." if role == "fallbacks" else
                            "Assign one worker for a fixed task or the models the router may choose from for a routed task.")
             zones.append(f'''<div class="route-zone" data-role="{role}" role="group" aria-labelledby="{zone_id}-title" aria-describedby="help-{zone_id}">
-<div class="zone-heading"><div class="field-caption"><strong id="{zone_id}-title">{label}</strong>{field_help(zone_id, task + " " + role, explanation)}</div><button type="button" data-assign hidden>Assign</button></div>
+<div class="zone-heading"><div class="field-caption"><strong id="{zone_id}-title">{label}</strong>{field_help(zone_id, task + " " + role, explanation)}</div><button class="ld-button" type="button" data-assign hidden>Assign</button></div>
 <div class="route-chips" data-assignments></div>
-<label data-manual>{label} IDs<input name="{zone_id}" aria-describedby="help-{zone_id}" value="{escape(str(form[zone_id]), quote=True)}" list="member-ids"></label></div>''')
+<label data-manual>{label} IDs<input class="ld-metadata-input" name="{zone_id}" aria-describedby="help-{zone_id}" value="{escape(str(form[zone_id]), quote=True)}" list="member-ids"></label></div>''')
         strategy = form_field(f"{task}-strategy", "Strategy", "Fixed always uses the assigned worker. Routed asks the router to choose among the assigned candidates.",
                               value=form[f"{task}-strategy"], options={"fixed": "Fixed", "routed": "Routed"})
         rows.append(f'''<fieldset class="task-row" data-task="{task}"><legend>{task.capitalize()}</legend>
@@ -158,7 +158,7 @@ def render_broker(form, choices, revision):
 <div class="route-chips" data-palette></div></div>
 <p class="sr-only" aria-live="polite" data-routing-status></p>
 {"".join(rows)}</section>
-<footer><button class="primary">Save broker</button><a href="/">Back to settings</a></footer></form>'''
+<footer><button class="ld-button">Save broker</button><a href="/">Back to settings</a></footer></form>'''
 
 
 def _local_path(root, relative, extensions):

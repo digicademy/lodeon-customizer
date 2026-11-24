@@ -46,7 +46,7 @@ def render_instance(model, overrides, revision):
 <fieldset><legend>Personal sampling settings</legend>
 <p class="hint">Leave either field empty to use the instance setting. The instance manages the provider connection, reasoning settings and limits.</p>
 <div class="fields">{"".join(fields)}</div></fieldset>
-<footer><button class="primary">Save settings</button><a href="/">Back to settings</a></footer></form>'''
+<footer><button class="ld-button">Save settings</button><a href="/">Back to settings</a></footer></form>'''
 
 
 def save_sampling(config, form, models, check):

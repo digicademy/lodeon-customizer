@@ -16,7 +16,7 @@ from .configuration import ConfigError, config_revision, read_model_environment,
 from . import broker_form
 from .instance_form import render_instance, save_sampling
 from .folders import open_folder, pick_folder
-from .form_fields import form_field
+from .form_fields import field_help, form_field
 from .model_form import (FIELDS, FormError, PROVIDERS, dependent_brokers, key_revision,
                          remove_profile, render_fields, save_key, save_model, values_for)
 from .profiles import LocalModels
@@ -41,26 +41,30 @@ def shell_assets():
     def svg(name):
         return "data:image/svg+xml;base64," + b64encode((branding / name).read_bytes()).decode("ascii")
 
-    return dict(css=Path(__file__).with_name("desktop.css").read_text(encoding="utf-8"),
+    ui = Path(__file__).resolve().parent
+    if not (ui / "desktop-theme.js").is_file() and not getattr(sys, "frozen", False):
+        ui = ui.parent / "build/ui/compiled"
+    return dict(theme_script=(ui / "desktop-theme.js").read_text(encoding="utf-8"),
+                css=(ui / "desktop.css").read_text(encoding="utf-8"),
                 logo_light=svg("logo-light.svg"), logo_dark=svg("logo-dark.svg"),
                 favicon=svg("favicon-light.svg"), favicon_dark=svg("favicon-dark.svg"))
 
 
 def icon(paths):
-    return (f'<svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-            f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{paths}"/></svg>')
+    return (f'<svg class="ld-lucide-icon" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{paths}"/></svg>')
 
 
 def instance_form(settings, revision):
     address = settings.get("instance") if isinstance(settings, dict) else ""
-    field = form_field(
-        "instance", "Instance connection",
-        "Enter the URL from your LODEON tab, including its deployment path. Save it here, then choose Settings → Customize Workbench in that tab.",
-        kind="url", value=address if isinstance(address, str) else "", attrs='placeholder="https://example.org/lodeon/" required',
-    )
-    return (f'<form class="instance-connection" method="post" action="/instance">{field}'
-            f'<input type="hidden" name="revision" value="{revision}">'
-            '<button aria-label="Save instance"><span>Save<span class="wide-label"> instance</span></span></button></form>')
+    help_text = field_help("instance", "Instance connection",
+                           "Enter the URL from your LODEON tab, including its deployment path. Save it here, then choose Settings → Customize Workbench in that tab.")
+    value = escape(address, quote=True) if isinstance(address, str) else ""
+    return (f'<form id="instance-link" class="instance-connection ld-project-switcher" method="post" action="/instance">'
+            f'<div class="instance-label"><label for="field-instance">Instance connection</label>{help_text}</div>'
+            f'<input class="instance-url" id="field-instance" name="instance" type="url" aria-describedby="help-instance" '
+            f'value="{value}" placeholder="https://example.org/lodeon/" required>'
+            f'<input type="hidden" name="revision" value="{revision}"></form>')
 
 
 def layout(content, *, server=None, connection=""):
@@ -68,9 +72,13 @@ def layout(content, *, server=None, connection=""):
     if server is not None:
         if server.folder_warning:
             connection = ""
+        save = ""
+        if connection:
+            disk = icon("M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M7 3v6h9V3 M7 21v-8h10v8")
+            save = f'<button class="ld-button" type="submit" form="instance-link" aria-label="Save instance">{disk}Save</button>'
         power = icon("M12 2v10 M6 5.5a9 9 0 1 0 12 0")
-        action = (f'<form class="quit" method="post" action="/quit"><button aria-label="Quit Customizer">{power} '
-                  '<span>Quit<span class="wide-label"> Customizer</span></span></button></form>')
+        action = (f'<div class="ld-action-group">{save}<form method="post" action="/quit">'
+                  f'<button class="ld-button" type="submit" aria-label="Quit Customizer">{power}Quit</button></form></div>')
     return template("desktop.html").substitute(content=content, action=action, connection=connection, **shell_assets())
 
 
@@ -95,8 +103,8 @@ def model_list(contents):
             kind = "Broker" if broker else PROVIDERS.get(item.get("provider"), "")
             meta = kind + (" · Default" if assistant.get("defaultModel") == key else "")
             target = quote(key, safe="")
-            edit = f'<a class="button" href="/{group}/edit/{target}" aria-label="Edit {label}">Edit</a>'
-            remove = f'<a class="button danger" href="/{group}/remove/{target}" aria-label="Remove {label}">Remove</a>'
+            edit = f'<a class="ld-button" href="/{group}/edit/{target}" aria-label="Edit {label}">Edit</a>'
+            remove = f'<a class="ld-button danger" href="/{group}/remove/{target}" aria-label="Remove {label}">Remove</a>'
             cards.append(f'<div class="model model-entry"><div><div class="model-title">{label}</div>'
                          f'<small>{escape(meta)}</small></div><div class="actions">{edit}{remove}</div></div>')
     return "".join(cards) or '<div class="panel-body"><p>No local models or brokers configured.</p></div>'
@@ -146,7 +154,7 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
 <input type="hidden" name="keyRevision" value="{key_version}">
 <input type="hidden" name="profile" value="{escape(key, quote=True)}">
 {secret}
-<p class="hint">{escape(key_hint)}</p><footer><button>Save API key</button></footer></form>"""
+<p class="hint">{escape(key_hint)}</p><footer><button class="ld-button">Save API key</button></footer></form>"""
     content = template("edit_model.html").substitute(
         title="Edit model" if key else "Add model", notice=notice_html(message, status),
         revision=revision, original=escape(key, quote=True), key_form=key_form,
@@ -200,7 +208,7 @@ def broker_page(handler, key="", *, message="", status=200, submitted=None):
 <h2>Routing prompt</h2>{prompt_field}
 <p class="hint">Available variables: {escape(variables)}</p>
 <input type="hidden" name="profile" value="{escape(key, quote=True)}"><input type="hidden" name="revision" value="{revision}">
-<input type="hidden" name="promptRevision" value="{stamp}"><footer><button class="primary">Save prompt</button></footer></form>'''
+<input type="hidden" name="promptRevision" value="{stamp}"><footer><button class="ld-button">Save prompt</button></footer></form>'''
         except (ValueError, OSError) as error:
             message = str(error) if isinstance(error, FormError) else "Check the local routing prompt files."
             status = 400
@@ -234,14 +242,14 @@ def removal_page(handler, group, key):
     if dependencies:
         links = "".join(f'<li><a href="/brokers/edit/{quote(name, safe="")}">{escape(broker.get("label") or name)}</a></li>'
                         for name, broker in assistant["modelBrokers"].items() if name in dependencies)
-        content = f'<div class="panel profile-editor"><p>Remove this model from the following brokers first.</p><ul>{links}</ul><a class="button" href="/">Back to models</a></div>'
+        content = f'<div class="panel profile-editor"><p>Remove this model from the following brokers first.</p><ul>{links}</ul><a class="ld-button" href="/">Back to models</a></div>'
     else:
         default = " This also clears your personal default." if assistant.get("defaultModel") == key else ""
         files = "Routing prompt files stay in this folder." if group == "brokers" else "Provider keys stay in the local keys file."
         content = f'''<form method="post" action="/{group}/remove" class="panel profile-editor">
 <p>Remove <strong>{escape(label)}</strong> ({escape(key)}) from your personal configuration?{default} {files}</p>
 <input type="hidden" name="revision" value="{revision}"><input type="hidden" name="profile" value="{escape(key, quote=True)}">
-<footer><button class="danger">Remove {noun}</button><a class="button" href="/">Cancel</a></footer></form>'''
+<footer><button class="ld-button danger">Remove {noun}</button><a class="ld-button" href="/">Cancel</a></footer></form>'''
     return editor_page(handler, f"Remove {noun}", content, instance_form(settings, revision))
 
 
@@ -274,7 +282,10 @@ def send_html(handler, html, status=200, *, script_hash=None):
     handler.send_header("Content-Type", "text/html; charset=utf-8")
     handler.send_header("Cache-Control", "no-store")
     handler.send_header("X-LODEON-Customizer", "desktop")
-    script_policy = f"; script-src 'sha256-{script_hash}'" if script_hash else ""
+    theme_hash = b64encode(sha256(shell_assets()["theme_script"].encode()).digest()).decode("ascii")
+    script_policy = f"; script-src 'sha256-{theme_hash}'"
+    if script_hash:
+        script_policy += f" 'sha256-{script_hash}'"
     handler.send_header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" + script_policy)
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
@@ -299,7 +310,7 @@ def page(handler, message="", status=200):
     remote = "".join(
         f'<div class="model model-entry"><div><div class="model-title">{escape(item["label"])}</div>'
         f'<small>Instance · {escape(PROVIDERS[item["provider"]])}</small></div>'
-        f'<a class="button" href="/instance-models/edit/{quote(key, safe="")}" aria-label="Edit settings for {escape(item["label"], quote=True)}">Edit settings</a></div>'
+        f'<a class="ld-button" href="/instance-models/edit/{quote(key, safe="")}" aria-label="Edit settings for {escape(item["label"], quote=True)}">Edit settings</a></div>'
         for key, item in sorted(installed.items(), key=lambda pair: pair[1]["label"].casefold())
     )
     folder_form = template("folder.html").substitute(

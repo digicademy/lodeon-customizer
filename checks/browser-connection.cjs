@@ -40,7 +40,22 @@ async function main() {
     browser = await engine.launch(options);
     const context = await browser.newContext();
     const settings = await context.newPage();
+    await settings.emulateMedia({ colorScheme: "dark" });
     await settings.goto(local);
+    await settings.getByRole("button", { name: "Switch to day theme" }).click();
+    await settings.reload();
+    await settings.getByRole("button", { name: "Switch to night theme" }).waitFor();
+    const bounds = locator => locator.boundingBox();
+    const header = settings.locator("header.ld-topbar");
+    const label = await bounds(header.locator('label[for="field-instance"]'));
+    const input = await bounds(header.getByRole("textbox", { name: "Instance connection" }));
+    assert(label.x + label.width <= input.x && Math.abs(label.y + label.height / 2 - input.y - input.height / 2) <= 1);
+    const save = await bounds(header.getByRole("button", { name: "Save instance" }));
+    const quit = await bounds(header.getByRole("button", { name: "Quit Customizer" }));
+    assert.equal(save.y, quit.y);
+    assert.equal(save.height, quit.height);
+    assert.equal((await bounds(settings.getByRole("heading", {name: "Models", exact: true}))).y,
+                 (await bounds(settings.getByRole("heading", {name: "Local files"}))).y);
     await settings.locator("header").getByRole("textbox", { name: "Instance connection", exact: true }).fill(approved + "/lodeon/");
     await settings.getByRole("button", { name: "Save instance" }).click();
     await settings.getByText("Instance saved.").waitFor();

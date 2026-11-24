@@ -558,8 +558,16 @@ and fallback areas, plus keyboard controls. A Brave desktop check exercised
 dragging, removal, ordering, saving and reopening a mixed broker, and the layout
 at 320 pixels. The existing broker policy and delegation wire format are unchanged.
 
-The local GUI now follows the Editor's square controls, top bar, metadata
-fields and day/night colours. The header contains the editable instance URL and its save action. Field labels have expandable help and descriptive
+The native build compiles the selected Core Editor's Tailwind stylesheet with its
+locked PostCSS tools and bundles the Editor's day/night toggle. The header uses
+the Editor action buttons and puts the instance label before the URL input at
+every width. Models and Local files share one heading baseline on desktop.
+Browser review compared the live Editor's New and Import controls with Save
+and Quit. All four measured 38 px high with 12 px horizontal padding and an
+8 px icon gap. Checks covered 320–1440 px, switching themes, reloading,
+opening model and broker forms, and saving the instance from the header.
+
+Field labels have expandable help and descriptive
 text areas span both form columns. Broker hints appear beneath selected
 members. New task assignments require an explicit choice in the form and on
 submission. The package checks cover rejected empty fixed and routed tasks.

@@ -13,6 +13,7 @@ import tomllib
 from pathlib import Path
 from venv import EnvBuilder
 
+from build_ui import build_ui
 from smoke import NAME, check_archive
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,6 +85,9 @@ def build(core, work, output, channel):
         shutil.copy2(core / "api/pyproject.toml", runtime)
         package = stage / "customizer"
         shutil.copytree(ROOT / "src", package / "src", ignore=shutil.ignore_patterns("__pycache__"))
+        desktop_assets = build_ui(core, ROOT, work / "ui", python)
+        for filename in ("desktop.css", "desktop-theme.js"):
+            shutil.copy2(desktop_assets / filename, package / "src" / filename)
         shutil.copy2(ROOT / "pyproject.toml", package)
         public = stage / "public"
         public.mkdir()
