@@ -1,0 +1,103 @@
+name: Build desktop apps
+
+on:
+  push:
+    branches: [main]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fetch one revision of GitLab Core main
+        shell: bash
+        env:
+          CORE_READ_TOKEN: ${{ secrets.LODEON_CORE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          api='https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-core/repository'
+          auth=()
+          if [[ -n "$CORE_READ_TOKEN" ]]; then auth=(-H "PRIVATE-TOKEN: $CORE_READ_TOKEN"); fi
+          sha=$(curl -fsS --retry 3 "${auth[@]}" "$api/branches/main" | jq -er '.commit.id | select(test("^[0-9a-f]{40}$"))')
+          echo "Bundling Core $sha"
+          mkdir core
+          curl -fsS --retry 3 "${auth[@]}" "$api/archive.tar.gz?sha=$sha" -o core.tar.gz
+          tar -xzf core.tar.gz --strip-components=1 -C core
+          echo "$sha" > core/CORE-REVISION
+          tar -czf core-inputs.tar.gz -C core CORE-REVISION LICENSE api/pyproject.toml api/lodeon_model_runtime \
+            config/config.yml config/resolver resources/branding editor/public/assets/{apple-touch-icon.png,favicon.ico}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-inputs
+          path: core-inputs.tar.gz
+          overwrite: true
+          if-no-files-found: error
+
+  native:
+    needs: core
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: windows-x86_64, runner: windows-2022}
+          - {target: macos-arm64, runner: macos-15}
+          - {target: macos-x86_64, runner: macos-15-intel}
+          - {target: linux-x86_64, runner: ubuntu-22.04}
+          - {target: linux-arm64, runner: ubuntu-22.04-arm}
+    runs-on: ${{ matrix.runner }}
+    environment: ${{ github.ref_type == 'tag' && 'release-signing' || 'latest' }}
+    steps:
+      - name: Extract the mirrored Customizer commit
+        shell: bash
+        run: |
+          curl -fsSL --retry 3 "https://codeload.github.com/$GITHUB_REPOSITORY/tar.gz/$GITHUB_SHA" -o customizer.tar.gz
+          tar -xzf customizer.tar.gz --strip-components=1
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: latest-known
+          enable-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: core-inputs
+      - name: Extract the shared Core inputs
+        shell: bash
+        run: mkdir core && tar -xzf core-inputs.tar.gz -C core
+      - name: Prepare macOS release signing
+        if: github.ref_type == 'tag' && runner.os == 'macOS'
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_NOTARY_KEY_BASE64: ${{ secrets.MACOS_NOTARY_KEY_BASE64 }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
+        run: bash release/sign-macos.sh
+      - name: Prepare Windows release signing
+        if: github.ref_type == 'tag' && runner.os == 'Windows'
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: ./release/sign-windows.ps1
+      - name: Build and test the extracted archive
+        shell: bash
+        env:
+          DESKTOP_TARGET: ${{ matrix.target }}
+          PYTHONUTF8: '1'
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then channel=--release; else channel=--latest; fi
+          uv run --no-project --managed-python --python 3.12 python release/build.py --core core "$channel"
+          cp core/CORE-REVISION dist/CORE-REVISION
+          printf '%s\n' "$GITHUB_REF" > dist/CUSTOMIZER-REF
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: candidate-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          overwrite: true
+          compression-level: 0
+          retention-days: 30

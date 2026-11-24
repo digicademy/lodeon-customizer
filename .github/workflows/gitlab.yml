@@ -1,0 +1,45 @@
+name: Send successful build to GitLab
+
+on:
+  workflow_run:
+    workflows: [Build desktop apps]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.path == '.github/workflows/desktop.yml' &&
+      github.event.workflow_run.head_repository.full_name == 'digicademy/lodeon-customizer'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Start the GitLab publication pipeline
+        env:
+          TRIGGER_TOKEN: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
+          BUILD_REF: ${{ github.event.workflow_run.head_branch }}
+          BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          : "${TRIGGER_TOKEN:?Set GITLAB_TRIGGER_TOKEN in the mirror Actions secrets}"
+          project='https://gitlab.rlp.net/api/v4/projects/62371'
+          if [[ "$BUILD_REF" == main ]]; then
+            refs=branches
+          elif [[ "$BUILD_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            refs=tags
+          else
+            echo "Unexpected release ref: $BUILD_REF" >&2
+            exit 1
+          fi
+          current=$(curl -fsS --retry 3 "$project/repository/$refs/$BUILD_REF" | jq -er '.commit.id')
+          if [[ "$current" != "$BUILD_SHA" ]]; then
+            echo "$BUILD_REF has moved on GitLab. Skipping the superseded build."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            --form-string "token=$TRIGGER_TOKEN" --form-string "ref=$BUILD_REF" \
+            --form-string "inputs[github_run_id]=$BUILD_RUN_ID" "$project/trigger/pipeline" |
+            jq -er '.web_url // error((.message // .error // "GitLab returned no pipeline URL") | tostring)'

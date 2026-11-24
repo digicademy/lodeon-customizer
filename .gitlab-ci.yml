@@ -1,55 +1,56 @@
+spec:
+  inputs:
+    github_run_id:
+      description: Completed desktop workflow run on the GitHub mirror
+      default: '0'
+      regex: '^[0-9]+$'
+---
 workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "trigger" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/)'
 
-stages: [source, desktop, review, acceptance]
+stages: [import, review, acceptance]
 
-core-source:
-  stage: source
-  tags: [linux-x86_64]
-  script:
-    - |
-      set -eu
-      mkdir -p build/core
-      api="$CI_API_V4_URL/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-core/repository"
-      auth="JOB-TOKEN: $CI_JOB_TOKEN"
-      if [ -n "${LODEON_CORE_READ_TOKEN:-}" ]; then auth="PRIVATE-TOKEN: $LODEON_CORE_READ_TOKEN"; fi
-      curl --fail --silent --show-error --header "$auth" "$api/commits/refs%2Fheads%2Fmain" -o build/revision.json
-      sha=$(python -c 'import json,re; s=json.load(open("build/revision.json"))["id"]; assert re.fullmatch("[0-9a-f]{40,64}",s); print(s)')
-      curl --fail --silent --show-error --header "$auth" "$api/archive.tar.gz?sha=$sha" -o build/core.tar.gz
-      mkdir -p build/checkout build/core/api build/core/config
-      tar -xzf build/core.tar.gz --directory build/checkout --strip-components=1
-      if [ ! -f build/checkout/api/pyproject.toml ] || [ ! -d build/checkout/api/lodeon_model_runtime ]; then
-        echo "Core main at $sha lacks the model runtime required by the Customizer." >&2
-        exit 1
-      fi
-      cp build/checkout/LICENSE build/core/
-      cp -R build/checkout/api/pyproject.toml build/checkout/api/lodeon_model_runtime build/core/api/
-      cp -R build/checkout/config/config.yml build/checkout/config/resolver build/core/config/
-      mkdir -p build/core/resources
-      cp -R build/checkout/resources/branding build/core/resources/
-      mkdir -p build/core/editor/public/assets
-      cp build/checkout/editor/public/assets/apple-touch-icon.png build/checkout/editor/public/assets/favicon.ico build/core/editor/public/assets/
-      echo "$sha" > build/core/REVISION
-  artifacts:
-    access: developer
-    paths: [build/core/]
-    expire_in: 30 days
+default:
+  image: alpine:3.22
 
 native-app:
-  stage: desktop
+  stage: import
   parallel:
     matrix:
       - DESKTOP_TARGET: [windows-x86_64, macos-arm64, macos-x86_64, linux-arm64, linux-x86_64]
-  tags: [$DESKTOP_TARGET]
+  variables:
+    GIT_STRATEGY: empty
+    GH_REPO: digicademy/lodeon-customizer
+    GH_RUN_ID: '$[[ inputs.github_run_id ]]'
   script:
-    - python release/build.py --core build/core --work build/desktop
+    - apk add --no-cache github-cli jq
+    - |
+      set -eu
+      export GH_TOKEN="${GITHUB_ACTIONS_READ_TOKEN:?Set the GitHub Actions read token in GitLab CI/CD variables}"
+      gh api "repos/$GH_REPO/actions/runs/$GH_RUN_ID" |
+        jq -e --arg repo "$GH_REPO" --arg sha "$CI_COMMIT_SHA" --arg ref "$CI_COMMIT_REF_NAME" '
+          .head_repository.full_name == $repo and .head_sha == $sha and .head_branch == $ref and
+          .path == ".github/workflows/desktop.yml" and .event == "push" and .conclusion == "success"' || {
+          echo "Expected a successful desktop build of $CI_COMMIT_REF_NAME at $CI_COMMIT_SHA in GitHub run $GH_RUN_ID." >&2
+          exit 1
+        }
+      gh run download "$GH_RUN_ID" --repo "$GH_REPO" --name "candidate-$DESKTOP_TARGET" --dir incoming
+      channel=latest
+      ref="refs/heads/main"
+      if [ -n "${CI_COMMIT_TAG:-}" ]; then channel=${CI_COMMIT_TAG#v}; ref="refs/tags/$CI_COMMIT_TAG"; fi
+      test "$(cat incoming/CUSTOMIZER-REF)" = "$ref"
+      grep -Exq '[0-9a-f]{40}' incoming/CORE-REVISION
+      case "$DESKTOP_TARGET" in linux-*) ext=tar.gz ;; *) ext=zip ;; esac
+      archive="LODEON-Customizer-$channel-$DESKTOP_TARGET.$ext"
+      mkdir -p dist revisions
+      mv "incoming/$archive" dist/
+      mv incoming/CORE-REVISION "revisions/$DESKTOP_TARGET"
   artifacts:
     name: candidate-$DESKTOP_TARGET
-    paths: [dist/]
+    paths: [dist/, revisions/]
     expire_in: 30 days
 
-# A tagged release requires a normal desktop launch and hosted browser check on each OS.
 desktop-review:
   stage: review
   rules:
@@ -59,16 +60,13 @@ desktop-review:
   needs:
     - job: native-app
       artifacts: false
-  tags: [linux-x86_64]
   script:
     - echo "Maintainer confirmed the signed candidates and browser checks in the README."
 
 accepted-archives:
   stage: acceptance
-  tags: [linux-x86_64]
   resource_group: desktop-publication
   needs:
-    - core-source
     - native-app
     - job: desktop-review
       artifacts: false
@@ -76,11 +74,16 @@ accepted-archives:
   script:
     - |
       set -eu
-      for target in windows-x86_64.zip macos-arm64.zip macos-x86_64.zip linux-arm64.tar.gz linux-x86_64.tar.gz; do
-        test -f dist/LODEON-Customizer-*-"$target"
-      done
-      cp build/core/REVISION dist/CORE-REVISION
+      sort -u revisions/* > dist/CORE-REVISION
+      if [ "$(wc -l < dist/CORE-REVISION)" -ne 1 ]; then
+        echo "The platform archives contain different Core revisions." >&2
+        exit 1
+      fi
       (cd dist && sha256sum LODEON-Customizer-* > SHA256SUMS)
-      if [ -n "${CI_COMMIT_TAG:-}" ]; then python release/publish.py; fi
+      test "$(wc -l < dist/SHA256SUMS)" -eq 5
+      if [ -n "${CI_COMMIT_TAG:-}" ]; then
+        apk add --no-cache python3
+        python3 release/publish.py
+      fi
   artifacts:
     paths: [dist/SHA256SUMS, dist/CORE-REVISION]

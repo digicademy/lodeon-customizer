@@ -264,7 +264,7 @@ desktop acceptance. Desktop and browser verification are recorded separately.
 
 The five package checks passed on both build hosts; 29 Core configuration
 schema tests passed. The browser checks used a controlled hosted test page.
-Release signing, the full GitLab matrix and browser acceptance through the
+Release signing, the full native matrix and browser acceptance through the
 production Settings client are pending. The Linux VM was a test environment;
 users start the desktop executable directly.
 
@@ -466,6 +466,21 @@ inputs for consolidated acceptance.
 The Assistant's connection dialog opens this repository's download table and
 setup instructions. The table links to the last successful public `main`
 builds for all five platforms and the bundled Core revision.
+The GitLab RLP push mirror supplies the Customizer commit to GitHub Actions.
+GitHub resolves GitLab Core `main` once and builds and smoke-tests all five
+native archives. A successful run triggers ordinary untagged GitLab import
+jobs. Each import checks the workflow, ref and commit. Publication requires
+five archives from the same Core revision. Routine `main` builds refresh the
+existing GitLab download links automatically. The README owns setup and retries.
+
+**Verification, 2026-11-24.** Both Actions workflows passed actionlint and the
+GitLab configuration passed schema validation. Local CI fixtures exercised
+the five imports, checksums, tag selection and rejection of a superseded ref,
+failed build, wrong commit and mixed Core revisions. A Linux ARM64 rolling
+archive built against public Core `f7a3d052` passed all ten Package tests,
+extracted first launch, setup, restart and a provider request. The first hosted
+five-platform run and signed-out GitLab downloads remain to be verified.
+
 The tagged pipeline publishes the five reviewed
 archives and verification files in the Generic Package Registry. Release
 acceptance still requires a successful tagged run, recorded native browser

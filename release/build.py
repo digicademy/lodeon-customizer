@@ -66,7 +66,8 @@ def publish_local_app(source, output):
     return target
 
 
-def build(core, work, output, release):
+def build(core, work, output, channel):
+    release = channel == "release"
     work.mkdir(parents=True, exist_ok=True)
     venv = work / "venv"
     if not (venv / "pyvenv.cfg").exists():
@@ -120,10 +121,7 @@ def build(core, work, output, release):
             "--add-data", f"{core / 'resources/branding'}:resources/branding",
             "--add-data", f"{core / 'LICENSE'}:resources/core",
             *flags, ROOT / "release/launch.py", env=env)
-        channel = version if release else "dev"
-        if not release and os.environ.get("CI_JOB_ID") and os.environ.get("CI_COMMIT_BRANCH") == "main":
-            channel = "latest"
-        label = f"LODEON-Customizer-{channel}-{SYSTEM}-{ARCH}"
+        label = f"LODEON-Customizer-{version if release else channel}-{SYSTEM}-{ARCH}"
         if SYSTEM == "macos":
             bundle = dist / (NAME + ".app")
             archive = stage / (label + ".zip")
@@ -158,7 +156,7 @@ def build(core, work, output, release):
         with tempfile.TemporaryDirectory(dir=output) as temporary:
             pending = Path(temporary) / archive.name
             shutil.copy2(archive, pending)
-            if not release and not os.environ.get("CI"):
+            if channel == "dev" and not os.environ.get("CI"):
                 print(f"App: {publish_local_app(extracted / local_app_folder(NAME), output)}", flush=True)
             pending.replace(output / archive.name)
         print(f"Verified {output / archive.name}", flush=True)
@@ -169,7 +167,12 @@ if __name__ == "__main__":
     parser.add_argument("--core", type=Path, default=os.environ.get("LODEON_CORE_ROOT", ROOT.parent.parent))
     parser.add_argument("--work", type=Path, default=ROOT / "build")
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
-    parser.add_argument("--release", action="store_true", default=bool(os.environ.get("CI_COMMIT_TAG")))
+    channels = parser.add_mutually_exclusive_group()
+    channels.add_argument("--latest", dest="channel", action="store_const", const="latest",
+                          help="Build a rolling download for the main branch.")
+    channels.add_argument("--release", dest="channel", action="store_const", const="release",
+                          help="Build the project version with native release signing.")
+    parser.set_defaults(channel="dev")
     args = parser.parse_args()
     if sys.version_info[:2] != (3, 12):
         parser.error("Use native CPython 3.12 to build the desktop app.")
@@ -177,4 +180,4 @@ if __name__ == "__main__":
     if expected and expected != f"{SYSTEM}-{ARCH}":
         parser.error(f"Expected {expected}, running on {SYSTEM}-{ARCH}")
     print(f"Building on {platform.platform()} with Python {platform.python_version()}", flush=True)
-    build(args.core.resolve(), args.work.resolve(), args.output.resolve(), args.release)
+    build(args.core.resolve(), args.work.resolve(), args.output.resolve(), args.channel)

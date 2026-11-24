@@ -131,42 +131,47 @@ With native Python 3.12 you can also run the build script with `python3.12` or, 
 
 ## Publish latest
 
-First merge and push any required Core changes to **lodeon-core/main**. Then merge and push the tested Customizer changes to **lodeon-customizer/main**. That push starts the public build automatically. GitLab resolves Core `main` to one commit for all five platforms. Once the pipeline succeeds, the five [download links](#downloads) serve the new archives.
+Merge any required Core changes into **lodeon-core/main** first. Then merge the tested Customizer changes into **lodeon-customizer/main on GitLab RLP**. That is the complete routine release procedure. The GitLab push mirror starts **Build desktop apps** on GitHub. It resolves the public GitLab Core `main` once, builds the same Customizer and Core revisions on five native hosts, and tests each extracted archive. [GitHub build runs](https://github.com/digicademy/lodeon-customizer/actions/workflows/desktop.yml)
 
-The pipeline needs the [five native runners](#build-environment). Allow public access to the build artifacts and enable **Settings → CI/CD → Artifacts → Keep artifacts from most recent successful jobs** so the downloads stay available between builds. GitLab serves these files as job artifacts. [GitLab artifact retention](https://docs.gitlab.com/ci/jobs/job_artifacts/#keep-artifacts-from-most-recent-successful-jobs)
+After all five pass, **Send successful build to GitLab** starts a publication pipeline for the mirrored ref. Ordinary GitLab instance runners import the archives from that exact GitHub run. They verify its workflow, ref and Customizer commit and check that all archives used one Core revision. Once **accepted-archives** succeeds on `main`, the five links under **Downloads** and their checksums refer to the new build. A failed build leaves the previous successful downloads available. [GitLab publication pipelines](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/pipelines)
+
+### One-time setup for maintainers
+
+| Where | Setting |
+| --- | --- |
+| GitLab → Settings → Repository → Mirroring repositories | Push from GitLab to `digicademy/lodeon-customizer` on GitHub. Include `main` and any release tags. Enable GitHub Actions on the mirror. |
+| GitLab → Settings → CI/CD → Pipeline trigger tokens | Create a trigger for this project with permission to run a pipeline on `main`. Copy its token into the **GitHub mirror** under **Settings → Secrets and variables → Actions → New repository secret** as **`GITLAB_TRIGGER_TOKEN`**. |
+| GitHub → Settings → Developer settings → Fine-grained personal access tokens | Select only `digicademy/lodeon-customizer` and grant **Actions → Read-only**. Store the token in the **GitLab project** under **Settings → CI/CD → Variables** as **`GITHUB_ACTIONS_READ_TOKEN`**, masked and protected. Protect `main` and any release tags that need this variable. |
+| GitLab → Settings → CI/CD | Enable instance runners for untagged jobs and **Artifacts → Keep artifacts from most recent successful jobs**. Allow public access to pipeline artifacts. Each platform uses a separate GitLab job archive. |
+
+The trigger starts a pipeline. The read token downloads Actions artifacts. Keep the GitHub credential used for GitLab push mirroring separate. The public Core checkout needs no credential. [GitLab pipeline triggers](https://docs.gitlab.com/ci/triggers/) · [GitHub artifact download permissions](https://docs.github.com/en/rest/actions/artifacts#download-an-artifact) · [GitLab artifact retention](https://docs.gitlab.com/ci/jobs/job_artifacts/#keep-artifacts-from-most-recent-successful-jobs)
+
+**First publication.** Follow the mirrored commit on the GitHub Actions page and then the GitLab pipeline linked in the handoff job log. Open a download and **SHA256SUMS** from this README in a signed-out browser. If the handoff fails after a successful build, fix the trigger setup and re-run **Send successful build to GitLab** on GitHub. If the import fails, check the read token and retry the failed GitLab job. For a GitLab runner error `413 Request Entity Too Large`, check the project's maximum job artifact size against the largest single platform archive. A superseded commit is skipped or fails the SHA check if the ref moves during the handoff.
 
 ### Optional versioned publication
 
-For a future versioned release, the tag jobs also need access to the signing identities on Windows and macOS, and the Package Registry must allow public downloads.
+1. Prepare signing once for reviewed releases. On the mirror create the **release-signing** GitHub Actions environment, allow only protected release tags matching `v*` to deploy, and enter the environment secrets below. Allow public downloads from the GitLab Package Registry.
+2. Merge the required Core and Customizer changes. Match the version in both `pyproject.toml` and `lodeon.package.yml`. Create the corresponding GitLab tag, for example `v0.2.0`, at the tested Customizer commit. The mirrored tag starts a signed build against one revision of GitLab Core `main`. [Create a GitLab tag](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/tags/new)
+3. In the GitLab tag pipeline, download the five **native-app** artifacts and perform the [desktop review](#desktop-review). Choose **Play** on **desktop-review** after review. **accepted-archives** verifies the public versioned files and creates the Release entry. [Reviewed releases](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases)
 
-1. **Prepare Core.** Merge any required runtime changes into `lodeon-core/main`. Tagged builds use the same Core `main` source policy as public `latest` builds.
-2. **Push the Customizer release commit to `main`.** Its `pyproject.toml` project version and `lodeon.package.yml` version should both say `0.2.0` for the first release. For subsequent releases, update both files to the new version. Each successful `main` pipeline updates the development downloads automatically.
-3. **Create the Customizer tag.** Open [Code → Tags → New tag](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/tags/new). Enter `v0.2.0` for **Tag name**, select the release commit under **Create from**, and choose **Create tag**. Leave release notes empty if that field is shown. The pipeline creates the Release entry after review. [GitLab tag instructions](https://docs.gitlab.com/user/project/repository/tags/#from-the-ui)
-4. **Approve the desktop builds.** Open [Build → Pipelines](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/pipelines), select the pipeline for **v0.2.0**, and wait for the five **native-app** jobs. Download their artifacts and perform the [desktop review](#desktop-review). Then choose **Play** on **desktop-review**. A job stuck at **Pending** with a missing-runner message needs an online runner with the tag shown on that job.
-5. **Check the publication.** Wait for **accepted-archives** to turn green. Open the [Releases page](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases) in a signed-out browser. **LODEON Customizer 0.2.0 → Assets** contains five native archives, `SHA256SUMS` and `CORE-REVISION`. The [latest reviewed release](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases/permalink/latest) now opens this version.
-
-If you prefer the terminal for step 3, run the following yourself in the Customizer checkout at the already pushed release commit. Continue with step 4 in GitLab.
-
-```sh
-git tag -a v0.2.0 -m "LODEON Customizer 0.2.0"
-git push origin v0.2.0
-```
+| Tagged build | Secrets in the GitHub `release-signing` environment |
+| --- | --- |
+| macOS | `MACOS_CERTIFICATE_BASE64` (Developer ID Application identity exported as a base64 PKCS#12), `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGN_IDENTITY` (identity name), `MACOS_NOTARY_KEY_BASE64` (base64 App Store Connect team API key in P8 format), `MACOS_NOTARY_KEY_ID` and `MACOS_NOTARY_ISSUER`. |
+| Windows | `WINDOWS_CERTIFICATE_BASE64` (base64 PFX with an importable code-signing key), `WINDOWS_CERTIFICATE_PASSWORD` and `WINDOWS_TIMESTAMP_URL` (RFC 3161 timestamp service). This signing step requires a certificate whose issuance policy permits import on the runner. |
 
 ## Build environment
 
-The build installs the model runtime from the selected Core source, bundles its matching resolver and defaults, and archives a native application with PyInstaller. It then extracts **that archive** into a fresh directory, isolates the user profile, starts the executable, saves an instance, checks origin restrictions, restarts it, invokes a credentialed local HTTP provider fixture through the bundled runtime and quits. No external model or provider key is needed.
+The hosted runners use native CPython 3.12. Each build installs the model runtime from the pinned Core source, bundles its matching resolver and defaults, then packages the app with PyInstaller. The smoke test extracts the archive into a fresh directory, starts it with isolated user data, saves an instance, checks origin restrictions, restarts the app and invokes a credentialed local HTTP provider fixture.
 
-The GitLab source job needs read access to Core. It downloads the archive by the resolved commit SHA and supplies those same inputs to all native jobs. For a private checkout, an authorized masked read-only `LODEON_CORE_READ_TOKEN` can be supplied to that job. CI uses the runner tags below and checks that Python actually runs on the requested OS and architecture.
-
-| Runner tag | Deliverable | Release host |
+| Platform | GitHub-hosted runner | Archive |
 | --- | --- | --- |
-| `windows-x86_64` | ZIP, containing the Windows application | Native Windows x64, signing certificate and SignTool |
-| `macos-arm64` | ZIP, containing the macOS app | Native Apple Silicon, Developer ID and notarization |
-| `macos-x86_64` | ZIP, containing the macOS app | Native Intel Mac, Developer ID and notarization |
-| `linux-x86_64` | tar.gz, containing the Linux application | Native glibc Linux x64 with binutils |
-| `linux-arm64` | tar.gz, containing the Linux application | Native glibc Linux arm64 with binutils |
+| Windows x64 | `windows-2022` | ZIP |
+| macOS Apple silicon | `macos-15` | ZIP |
+| macOS Intel | `macos-15-intel` | ZIP |
+| Linux x64 | `ubuntu-22.04` | tar.gz |
+| Linux ARM64 | `ubuntu-22.04-arm` | tar.gz |
 
-Use shell runners with Python 3.12 available as `python`, port 8765 free, and standard OS build tools. Build on the oldest OS/glibc version intended for each published binary and record the actual runner OS and architecture. Tagged macOS builds need `MACOS_SIGN_IDENTITY` and `MACOS_NOTARY_PROFILE` in the signing keychain. Tagged Windows builds need `WINDOWS_SIGN_THUMBPRINT` and `WINDOWS_TIMESTAMP_URL`. Signing access belongs on protected release runners/tags. Development candidates can be built unsigned.
+Each job checks the OS and CPU architecture before building. Local development uses the checkout passed to `--core`. Both publication channels use the same public Core repository on GitLab. If Core becomes private, the source job accepts the optional read-only GitHub Actions secret `LODEON_CORE_READ_TOKEN`. [GitHub-hosted runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 
 ## Desktop review
 
