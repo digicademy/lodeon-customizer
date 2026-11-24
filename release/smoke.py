@@ -90,10 +90,24 @@ def check_archive(archive, scratch, system):
     data = data_base / NAME / "data"
     config = data / "config.yml"
     proc = None
+    desktop_args = [exe, "--no-browser"]
+    if system == "linux":
+        browser = home / "smoke-browser"
+        browser.write_text(
+            """#!/bin/sh
+printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
+""",
+            encoding="utf-8",
+        )
+        browser.chmod(0o700)
+        env.update(BROWSER="smoke-browser %s", PATH=str(home) + os.pathsep + env["PATH"])
+        env.pop("LD_LIBRARY_PATH", None)
+        env.pop("LD_LIBRARY_PATH_ORIG", None)
+        desktop_args = [exe]
 
     def launch(phase):
         nonlocal proc
-        proc = subprocess.Popen([exe, "--no-browser"], cwd=home, env=env)
+        proc = subprocess.Popen(desktop_args, cwd=home, env=env)
         until = time.monotonic() + 60
         last_error = None
         while proc.poll() is None:
@@ -121,7 +135,15 @@ def check_archive(archive, scratch, system):
         threading.Thread(target=provider.serve_forever, daemon=True).start()
         try:
             launch("First launch")
-            subprocess.run([exe, "--no-browser"], cwd=home, env=env, timeout=15, check=True)
+            if system == "linux":
+                record = home / "browser-launch"
+                if record.read_text().splitlines() != [LOCAL + "/", "<unset>"]:
+                    raise RuntimeError("Browser inherited the bundled library path on first launch")
+                record.unlink()
+                env["LD_LIBRARY_PATH"] = str(home / "host libraries")
+            subprocess.run(desktop_args, cwd=home, env=env, timeout=15, check=True)
+            if system == "linux" and record.read_text().splitlines() != [LOCAL + "/", env["LD_LIBRARY_PATH"]]:
+                raise RuntimeError("Browser did not receive the original host library path on relaunch")
             identity = (data / ".service-id").read_bytes()
             request("POST", "/v1/connect", origin=ORIGIN, status=403)
             form = {"instance": ORIGIN + "/lodeon/", "revision": re.search(r'name="revision" value="([a-f0-9]+)"', request("GET", "/"))[1]}

@@ -82,6 +82,8 @@ Keep the app running while using Chat, **Check Tools** or suggested questions wi
 
 If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
 
+If the Linux desktop cannot open the browser automatically, open <http://127.0.0.1:8765/> in your browser. If the page is unreachable, run `./LODEON-Customizer --no-browser` from the extracted app folder, leave the terminal open and reload the page.
+
 Choose **Disconnect** to release just the current tab. Choose **Quit Customizer** on the local settings page to stop the app. Closing the local settings tab leaves it running. Your local configuration is available the next time you start it.
 
 The hosted instance owns orchestration, tools, SPARQL and final synthesis. The connected tab passes prepared model calls to the Customizer and returns their results to Core. A mixed broker uses the same connection for its local workers. Core calls its authorized instance workers directly. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)

@@ -489,6 +489,15 @@ passed with a timeout injected on restart, and a persistently unreachable
 service failed at the deadline. A successful hosted Intel restart and
 signed-out downloads from GitLab remain to be verified.
 
+The Linux launcher restores the caller's library search path for desktop
+programs. A KDE report traced the failed browser launch to `kde-open` loading
+the app's bundled `libstdc++.so.6`. The Linux archive check now exercises
+automatic browser opening on first and repeat launch and inspects the URL and
+library path received by a stand-in browser executable. The earlier ARM64 archive
+failed this check. The corrected ARM64 archive passed it, the provider smoke
+test and a separate settings-folder check using a stand-in `kdialog`. A
+graphical run on the affected x64 KDE system is still pending.
+
 The tagged pipeline publishes the five reviewed
 archives and verification files in the Generic Package Registry. Release
 acceptance still requires a successful tagged run, recorded native browser
