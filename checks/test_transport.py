@@ -54,6 +54,9 @@ class TransportTest(unittest.TestCase):
         status, html = save(address)
         self.assertEqual(status, 200)
         self.assertIn("Instance saved.", html)
+        self.assertIn('href="/models/new"', html)
+        for route in ("/model", "/model-key"):
+            self.assertEqual(request("POST", route, origin=origin, form={"secret": "fixture"})[0], 403)
         self.assertEqual(yaml.safe_load(config.read_bytes())["instance"], address)
         status, html = save("http://stories.example.org/lodeon/")
         self.assertEqual(status, 400)

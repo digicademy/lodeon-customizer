@@ -16,14 +16,15 @@ from .profiles import LocalModels
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="LODEON-Customizer")
-    parser.add_argument("--data", type=Path, default=data_directory())
+    parser.add_argument("--data", type=Path)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
     url = "http://127.0.0.1:8765/"
     try:
-        identity = initialize(args.data)
-        models = LocalModels.load(args.data / "config.yml", identity)
-        with ModelService(("127.0.0.1", 8765), models, data=args.data, identity=identity) as server:
+        data = args.data if args.data is not None else data_directory()
+        identity = initialize(data)
+        models = LocalModels.load(data / "config.yml", identity)
+        with ModelService(("127.0.0.1", 8765), models, data=data, identity=identity) as server:
             if not args.no_browser:
                 webbrowser.open(url)
             server.serve_forever()

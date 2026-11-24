@@ -78,6 +78,17 @@ async function main() {
     }
     await assert.rejects(connect(blocked), /fetch|network|load failed/i);
     assert.deepEqual(await connect(allowed), [200, 0, 204]);
+    await settings.getByRole("link", { name: "Add model" }).click();
+    await settings.getByLabel("Display name").fill("Personal Ollama");
+    await settings.getByLabel("Provider model name").fill("fixture-model");
+    await settings.getByLabel("Use as my default model").check();
+    await settings.getByRole("button", { name: "Save model" }).click();
+    await settings.getByRole("heading", { name: "Edit model" }).waitFor();
+    await settings.getByText("Advanced settings", { exact: true }).click();
+    await settings.getByLabel("Temperature", { exact: true }).fill("0.4");
+    await settings.getByRole("button", { name: "Save model" }).click();
+    await settings.getByRole("status").waitFor();
+    assert.deepEqual(await connect(allowed), [200, 1, 204]);
     await settings.getByRole("button", { name: "Quit Customizer" }).click();
     assert.equal((await exit)[0], 0);
     console.log(type, browser.version(), "local settings, hosted connect/catalog/disconnect and foreign-origin denial passed.");

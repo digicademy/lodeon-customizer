@@ -87,7 +87,7 @@ def check_archive(archive, scratch, system):
                XDG_DATA_HOME=str(home / "xdg"), TOKENIZERS_PARALLELISM="false")
     data_base = {"windows": home / "local", "linux": home / "xdg",
                  "macos": home / "Library/Application Support"}[system]
-    data = data_base / "LODEON Customizer" / "data"
+    data = data_base / NAME / "data"
     config = data / "config.yml"
     proc = None
 

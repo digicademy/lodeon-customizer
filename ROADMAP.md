@@ -82,7 +82,7 @@ here, not in a second model-only repository.
 - The desktop settings use the Core wordmark and Editor palette in light and
   dark appearances. The native filename is `LODEON-Customizer` with the platform
   extension. A local development build replaces its app in the output folder
-  after checking the archive. Personal files retain their existing OS location.
+  after checking the archive. The OS data directory ends in `LODEON-Customizer/data`.
 - Retain a regular Package manifest and root `config.yml`. On first launch
   create the per-user `data/config.yml` and stable service identity in the
   OS user-data directory. Zero models is valid. Restarts and replacement of
@@ -95,10 +95,10 @@ here, not in a second model-only repository.
   user-data locations and browser review are specified in the [README](README.md).
 
 - The text editor and the small local Customizer UI share one editable file,
-  `data/config.yml`, and the Core Package resolver and schema. The current UI
-  saves the instance URL and edits an existing model's temperature. Users
-  define models, brokers and the default in YAML. Future forms for those
-  settings must update the same file directly. A save must retain
+  `data/config.yml`, and the Core Package resolver and schema. The local forms save the instance URL and create or edit personal model
+  profiles, including the default selection, provider, generation, caching,
+  limits and costs. A separate write-only form saves provider keys to
+  `data/models/.env`. Brokers and routing prompts are edited in the local files. A save must retain
   unrelated YAML settings and detect intervening file edits before replacing
   them. Invalid edits leave the last valid configuration available. Rotating
   a key under the same name updates only the model credentials file. The UI

@@ -48,8 +48,6 @@ def is_customizer_app(path, name):
 
 def publish_local_app(source, output):
     target = output / local_app_folder(NAME)
-    previous_name = "LODEON Customizer"
-    previous = output / local_app_folder(previous_name)
     if (target.exists() or target.is_symlink()) and not is_customizer_app(target, NAME):
         raise RuntimeError(f"Cannot replace unrelated file at {target}")
     with tempfile.TemporaryDirectory(dir=output) as temporary:
@@ -65,8 +63,6 @@ def publish_local_app(source, output):
             if backup.exists():
                 backup.rename(target)
             raise
-        if is_customizer_app(previous, previous_name):
-            previous.rename(stage / "previous-name")
     return target
 
 

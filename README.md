@@ -23,7 +23,7 @@ If your browser displays a development download as text, use **Save link as** on
 1. In the Assistant, open **Settings → Connect personal models**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **Setup and user guide** opens these instructions. If the menu entry is missing, check with your instance operator whether personal models are enabled for your session.
 2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
 3. The app opens a **local settings page** in your default browser. Copy the instance URL from your LODEON tab, including its deployment path, and choose **Save instance**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
-4. On first launch the model list is empty. Add your first model in the local file shown on the settings page using [Configure a personal model](#configure-a-personal-model) below. You do this once per model.
+4. On first launch the model list is empty. Choose **Personal models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
 5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
 
 | Your computer | Platform | Open after extraction |
@@ -38,29 +38,18 @@ On a Mac, **Apple menu → About This Mac** identifies the chip.
 
 ## Configure a personal model
 
-On the settings page, **Local files** shows the exact paths to your configuration and provider keys. **Personal models** lists configured models and brokers, marks your default and lets you edit a model's temperature. On first launch, expand **Configure an Ollama model** for an example. The page follows your system's light or dark appearance.
+1. Choose **Personal models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
+2. Select **Use as my default model** if you want LODEON to select this profile when you connect. Under **Advanced settings** you can set temperature, top P, reasoning effort, prompt caching, limits, costs and Ollama keep-alive. The Core runtime validates the selected provider’s settings.
+3. Choose **Save model**. For OpenAI and Anthropic, the edit page now offers a password field. Enter the **Provider API key** and choose **Save API key**. For a keyed OpenAI-compatible endpoint, select **Use a personal API key** when setting up the profile. A saved key can be replaced in this field and is never displayed.
+4. In LODEON, connect or reconnect the tab to refresh the catalog. Use **Edit model** in the Customizer to change a profile later.
 
-To use a model already installed in Ollama on the same computer, open your personal `config.yml` in a text editor. Keep the saved `instance` line. In a fresh configuration, replace the empty `assistant` section with the following. For an existing setup, add the profile under its existing `modelProfiles` mapping. Replace `gemma4:12b` with the exact name of your installed model.
-
-```yaml
-assistant:
-  defaultModel: local-ollama
-  modelProfiles:
-    local-ollama:
-      label: My Ollama
-      provider: ollama
-      model: gemma4:12b
-      baseURL: http://127.0.0.1:11434
-      promptCaching: {enabled: false, retention: default}
-```
-
-Save the file, reload the local settings page and choose **Save instance** to apply it, or quit and reopen the app. For a provider that requires a key, set `apiKeyEnv` in its profile to a name such as `PERSONAL_API_KEY` and put `PERSONAL_API_KEY=your-key` in the displayed `models/.env` file. The app reads the key on each invocation and sends it only to that provider. Define additional profiles, brokers and the default in YAML. The local page lets you change an existing model's temperature directly. Clear it to restore the configured default.
+For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. **Local files** shows its location and the separate `models/.env` file used for provider keys. Brokers and their routing prompts are configured in the local files.
 
 | System | Personal files |
 | --- | --- |
-| Windows | `%LOCALAPPDATA%\LODEON Customizer\data\` |
-| macOS | `~/Library/Application Support/LODEON Customizer/data/` |
-| Linux | `$XDG_DATA_HOME/LODEON Customizer/data/`, defaulting to `~/.local/share/LODEON Customizer/data/` |
+| Windows | `%LOCALAPPDATA%\LODEON-Customizer\data\` |
+| macOS | `~/Library/Application Support/LODEON-Customizer/data/` |
+| Linux | `$XDG_DATA_HOME/LODEON-Customizer/data/`, defaulting to `~/.local/share/LODEON-Customizer/data/` |
 
 ## Reconnect, disconnect or quit
 
@@ -111,7 +100,7 @@ uv run --no-project --python 3.12 python vendor/lodeon-customizer/release/build.
 open vendor/lodeon-customizer/dist/local/LODEON-Customizer.app
 ```
 
-Each local development build puts the tested app beside its archive and replaces the previous copy in that output folder, including the former filename with a space. Your personal settings live in the separate OS data folder. Both Intel and Apple Silicon use the same command.
+Each local development build puts the tested app beside its archive and replaces the same-named copy in that output folder. Your personal settings live in the separate OS data folder. Both Intel and Apple Silicon use the same command.
 
 With native Python 3.12 you can also run the build script with `python3.12` or, on Windows, `py -3.12`. On Windows and Linux, open the executable inside the output folder’s `LODEON-Customizer` directory. To test with the Assistant, enable `assistant.personalModels.enabled` on your instance, save its address in the app, then choose **Settings → Connect personal models → Connect** in that LODEON tab.
 

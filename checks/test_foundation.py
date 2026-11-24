@@ -11,7 +11,8 @@ from uuid import UUID
 
 import yaml
 from lodeon_model_runtime.wire import effective_limits, validate_payload
-from lodeon_customizer.configuration import save_temperature
+from lodeon_customizer.configuration import data_directory
+from lodeon_customizer.model_form import FIELDS, FormError, key_revision, save_key, save_model, values_for
 from lodeon_customizer.execution import execute_model
 from lodeon_customizer.profiles import ConfigError, LocalModels
 
@@ -89,23 +90,65 @@ class FoundationTest(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "^missing_local_setting$"):
             models.prepare("personal-sonnet", {}, CALL["bounds"], CALL["messages"], [])
 
-    def test_temperature_edit_preserves_configuration_and_detects_a_stale_form(self):
+    def test_form_edits_preserve_yaml_and_detect_a_stale_form(self):
         path = self.ollama
         path.write_text("# Personal configuration\n" + path.read_text())
-        revision = hashlib.sha256(path.read_bytes()).hexdigest()
+        key = "local-gemma"
+        original = yaml.safe_load(path.read_bytes())["assistant"]["modelProfiles"][key]
+        fields = dict.fromkeys(FIELDS, "")
+        fields.update({k: str(v) for k, v in values_for(key, original, key).items()})
+        fields.update(revision=hashlib.sha256(path.read_bytes()).hexdigest(), temperature="0.65")
         def check(candidate):
             return LocalModels.load(candidate, SERVICE)
 
-        models = save_temperature(path, "local-gemma", "0.65", revision, check)
+        _, models = save_model(path, fields, check)
         self.assertEqual(models.catalog(models.profile_ids)["models"][0]["generation"]["temperature"], 0.65)
         self.assertIn("# Personal configuration", path.read_text())
         saved = path.read_bytes()
         with self.assertRaisesRegex(ConfigError, "config_changed"):
-            save_temperature(path, "local-gemma", "0", revision, check)
+            save_model(path, fields, check)
         self.assertEqual(saved, path.read_bytes())
-        revision = hashlib.sha256(saved).hexdigest()
-        models = save_temperature(path, "local-gemma", "", revision, check)
+        fields.update(revision=hashlib.sha256(saved).hexdigest(), temperature="")
+        _, models = save_model(path, fields, check)
         self.assertNotIn("temperature", models.catalog(models.profile_ids)["models"][0]["generation"])
+        stored = yaml.safe_load(path.read_bytes())["assistant"]["modelProfiles"][key]
+        for name in ("access", "baseURLEnv", "limits", "promptCaching"):
+            self.assertEqual(stored[name], original[name])
+
+    def test_create_keyed_profile_and_rotate_credential_without_exposing_it(self):
+        path = self.root / "config.yml"
+        path.write_text("assistant: {modelProfiles: {}}\n")
+        form = dict.fromkeys(FIELDS, "")
+        form.update(values_for("", {}, None), label="Research model", provider="anthropic", model="test",
+                    topP="0.8", default="on", revision=hashlib.sha256(path.read_bytes()).hexdigest())
+        key, models = save_model(path, form, lambda candidate: LocalModels.load(candidate, SERVICE))
+        self.assertEqual(models.default_model, key)
+        content = path.read_bytes()
+        form["revision"] = hashlib.sha256(content).hexdigest()
+        with self.assertRaises(FormError):
+            save_model(path, form, lambda candidate: LocalModels.load(candidate, SERVICE))
+        self.assertEqual(path.read_bytes(), content)
+        env = self.root / "models/.env"
+        env.parent.mkdir()
+        env.write_text("# Retain unrelated settings\nOTHER=ok\n")
+        submission = {"profile": key, "revision": form["revision"], "keyRevision": key_revision(env), "secret": SENTINEL}
+        save_key(path, submission)
+        with self.assertRaisesRegex(ConfigError, "config_changed"):
+            save_key(path, submission)
+        submission.update(keyRevision=key_revision(env), secret="rotated-'token")
+        save_key(path, submission)
+        reloaded = LocalModels.load(path, SERVICE)
+        req = reloaded.prepare(key, {"topP": 0.8}, CALL["bounds"], CALL["messages"], [])
+        self.assertEqual(req.kwargs["api_key"], submission["secret"])
+        self.assertIn("# Retain unrelated settings\nOTHER=ok", env.read_text())
+        self.assertEqual(path.read_bytes(), content)
+        self.assertNotIn(submission["secret"], json.dumps(reloaded.targets({key})))
+
+    def test_default_data_folder_has_the_application_filename(self):
+        with patch("pathlib.Path.home", return_value=self.root), patch.dict(
+            "os.environ", XDG_DATA_HOME=str(self.root), LOCALAPPDATA=str(self.root)
+        ):
+            self.assertEqual(data_directory().parts[-2:], ("LODEON-Customizer", "data"))
 
     def test_keyed_completion_and_safe_failure(self):
         models = LocalModels.load(

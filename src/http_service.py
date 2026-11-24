@@ -7,7 +7,7 @@ from threading import RLock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from lodeon_model_runtime.wire import validate_payload
-from .desktop import local_action, page
+from .desktop import local_action, model_get, page
 from .execution import execute_model
 from .grants import Grants
 
@@ -157,9 +157,12 @@ class ModelHandler(BaseHTTPRequestHandler):
                 or self.headers["Host"] not in self.server.hosts
             ):
                 raise ValueError("denied")
-            if self.command == "GET" and self.path == "/" and "Origin" not in self.headers:
-                return page(self)
-            if self.command == "POST" and self.path in ("/instance", "/model", "/quit"):
+            if self.command == "GET" and "Origin" not in self.headers:
+                if self.path == "/":
+                    return page(self)
+                if self.path.startswith("/models/"):
+                    return model_get(self)
+            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/quit"):
                 return local_action(self)
             with self.server.settings_lock:
                 grants, models = self.server.grants, self.server.models

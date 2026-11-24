@@ -98,3 +98,22 @@ dd + dt { margin-top: 1.2rem; }
   .input-row input:not([type=hidden]) { flex: 1 0 100%; max-width: 100%; }
   .model .input-row input { flex: 1 1 6rem; }
 }
+a { color: var(--ink); text-underline-offset: .18em; }
+a:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.back { display: inline-block; margin-bottom: 1rem; }
+a.back, .panel-head a, .model a, .profile-editor footer a { font-size: .87rem; font-weight: 620; }
+.model-entry { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+.profile-editor { max-width: 52rem; padding: clamp(1rem,3vw,1.6rem); }
+.profile-editor fieldset { min-width: 0; padding: 0; margin: 0 0 1rem; border: 0; }
+.profile-editor legend { font-weight: 650; margin-bottom: .85rem; padding: 0; }
+.fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.fields :is(input,select,textarea), .key-entry input { display: block; margin-top: .35rem; }
+select, textarea { width: 100%; background: var(--control); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: .64rem .75rem; font: inherit; font-weight: 400; }
+textarea { resize: vertical; }
+.check { margin-top: 1rem; display: flex; gap: .5rem; align-items: center; }
+.check input { width: auto; accent-color: var(--focus); }
+.profile-editor details { border-block: 1px solid var(--rule); padding: .8rem 0; }
+.profile-editor details fieldset { margin-top: 1.1rem; }
+.profile-editor footer { display: flex; gap: 1rem; align-items: center; margin-top: 1.2rem; }
+.key-entry { margin-bottom: 1rem; }
+@media(max-width: 600px) { .fields { grid-template-columns: minmax(0,1fr); } }

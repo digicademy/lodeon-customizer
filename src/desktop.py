@@ -8,11 +8,12 @@ from html import escape
 from pathlib import Path
 from string import Template
 from threading import Thread
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote, urlsplit
 
 import yaml
 
-from .configuration import ConfigError, resource_paths, save_instance, save_temperature
+from .configuration import ConfigError, read_model_environment, resource_paths, save_instance
+from .model_form import FIELDS, FormError, PROVIDERS, key_revision, render_fields, save_key, save_model, values_for
 from .profiles import LocalModels
 
 
@@ -56,51 +57,88 @@ def message_page(title, explanation):
     return layout(f'<section class="panel notice-page"><h1>{escape(title)}</h1><p>{escape(explanation)}</p></section>')
 
 
-def model_forms(contents, revision):
-    assistant = contents.get("assistant")
+def model_list(contents):
+    assistant = contents.get("assistant") or {}
     if not isinstance(assistant, dict):
-        assistant = {}
-    profiles = assistant.get("modelProfiles", {})
-    brokers = assistant.get("modelBrokers", {})
+        raise ConfigError("invalid_config")
     cards = []
-    for key, profile in profiles.items() if isinstance(profiles, dict) else ():
-        if not isinstance(key, str) or not isinstance(profile, dict):
-            continue
-        label = escape(str(profile.get("label") or key))
-        meta = escape(str(profile.get("provider") or ""))
-        if key == assistant.get("defaultModel"):
-            meta = f"{meta} · Default" if meta else "Default"
-        generation = profile.get("generation")
-        temperature = generation.get("temperature", "") if isinstance(generation, dict) else ""
-        field = f"temperature-{len(cards)}"
-        cards.append(f"""<form class="model" method="post" action="/model">
-<div class="model-title">{label}</div><small>{meta}</small>
-<label for="{field}">Temperature <span class="sr-only">for {label}</span></label>
-<div class="input-row"><input id="{field}" type="number" min="0" max="2" step="any" name="temperature"
-placeholder="Provider default" value="{escape(str(temperature), quote=True)}">
+    for section in ("modelProfiles", "modelBrokers"):
+        items = assistant.get(section, {})
+        if not isinstance(items, dict):
+            raise ConfigError("invalid_config")
+        for key, item in items.items():
+            if not isinstance(key, str) or not isinstance(item, dict):
+                raise ConfigError("invalid_config")
+            label = escape(str(item.get("label") or key))
+            broker = section == "modelBrokers"
+            kind = "Broker" if broker else PROVIDERS.get(item.get("provider"), "")
+            meta = kind + (" · Default" if assistant.get("defaultModel") == key else "")
+            edit = "" if broker else f'<a href="/models/edit/{quote(key, safe="")}" aria-label="Edit {label}">Edit model</a>'
+            cards.append(f'<div class="model model-entry"><div><div class="model-title">{label}</div>'
+                         f'<small>{escape(meta)}</small></div>{edit}</div>')
+    return "".join(cards) or '<div class="panel-body"><p>No personal models yet. Choose <strong>Add model</strong> to configure your first one.</p></div>'
+
+
+def notice_html(message, status):
+    if not message:
+        return ""
+    role, style = ("alert", "error") if status >= 400 else ("status", "success")
+    return f'<p class="feedback {style}" role="{role}">{escape(message)}</p>'
+
+
+def model_page(handler, key="", *, message="", status=200, submitted=None):
+    config = handler.server.data / "config.yml"
+    raw = config.read_bytes()
+    revision = hashlib.sha256(raw).hexdigest()
+    try:
+        assistant = yaml.safe_load(raw).get("assistant", {})
+        profiles = assistant.get("modelProfiles", {})
+        if not isinstance(profiles, dict) or not all(isinstance(p, dict) for p in profiles.values()):
+            raise ConfigError("invalid_config")
+        profile = profiles.get(key, {})
+        values = submitted if submitted is not None else values_for(key, profile, assistant.get("defaultModel"))
+    except (AttributeError, TypeError, ValueError, yaml.YAMLError):
+        return page(handler, "Check the model profile settings in the local config.yml file.", 400)
+    if key and key not in profiles:
+        return page(handler, "This model no longer exists.", 404)
+    key_form = ""
+    variable = profile.get("apiKeyEnv")
+    if variable:
+        path = config.parent / "models" / ".env"
+        key_version = key_revision(path)
+        try:
+            configured = bool(read_model_environment(path).get(variable))
+            key_hint = "A key is stored. Enter a new value to replace it." if configured else "Enter the provider key for this model."
+            if not configured and status == 200 and message.startswith("Model saved."):
+                message = "Model saved. Enter your provider API key, then reconnect your LODEON tab."
+        except ConfigError:
+            key_hint = "Check the syntax of your local models/.env file before saving."
+        references = sum(other.get("apiKeyEnv") == variable for other in profiles.values())
+        if references > 1:
+            key_hint += f" This variable is shared by {references} profiles."
+        key_form = f"""<form class="panel profile-editor key-entry" method="post" action="/model-key">
+<input type="hidden" name="revision" value="{revision}">
+<input type="hidden" name="keyRevision" value="{key_version}">
 <input type="hidden" name="profile" value="{escape(key, quote=True)}">
-<input type="hidden" name="revision" value="{revision}"><button>Save temperature</button></div></form>""")
-    for key, broker in brokers.items() if isinstance(brokers, dict) else ():
-        if isinstance(broker, dict):
-            label = escape(str(broker.get("label") or key))
-            kind = "Broker · Default" if key == assistant.get("defaultModel") else "Broker"
-            cards.append(f'<div class="model"><div class="model-title">{label}</div><small>{kind}</small></div>')
-    if cards:
-        return "".join(cards)
-    return """<div class="panel-body"><div class="empty"><strong>No personal models yet</strong>
-<p>Add a profile to your local <code>config.yml</code> to make it available in LODEON.</p>
-<details><summary>Configure an Ollama model</summary>
-<p>In a fresh configuration, replace the empty <code>assistant</code> section with the example below.
-Use the name of an installed model, save the file and reopen the Customizer.</p>
-<pre>assistant:
-  defaultModel: local-ollama
-  modelProfiles:
-    local-ollama:
-      label: My Ollama
-      provider: ollama
-      model: gemma4:12b
-      baseURL: http://127.0.0.1:11434
-      promptCaching: {enabled: false, retention: default}</pre></details></div></div>"""
+<label>Provider API key<input name="secret" type="password" autocomplete="new-password" required></label>
+<p class="hint">{escape(key_hint)}</p><footer><button>Save API key</button></footer></form>"""
+    content = template("edit_model.html").substitute(
+        title="Edit model" if key else "Add model", notice=notice_html(message, status),
+        revision=revision, original=escape(key, quote=True), key_form=key_form,
+        advanced_open="open" if submitted is not None else "", **render_fields(values),
+    )
+    return send_html(handler, layout(content, running=True), status)
+
+
+def model_get(handler):
+    url = urlsplit(handler.path)
+    if url.path == "/models/new":
+        return model_page(handler)
+    if url.path.startswith("/models/edit/"):
+        message = {"saved=model": "Model saved. Reconnect your LODEON tab to refresh its model list.",
+                   "saved=key": "API key saved locally."}.get(url.query, "")
+        return model_page(handler, url.path.removeprefix("/models/edit/"), message=message)
+    return page(handler, "Model page not found.", 404)
 
 
 def send_html(handler, html, status=200):
@@ -122,16 +160,15 @@ def page(handler, message="", status=200):
         contents = yaml.safe_load(raw)
         if not isinstance(contents, dict):
             raise yaml.YAMLError()
-    except yaml.YAMLError:
+        models_html = model_list(contents)
+    except (ConfigError, yaml.YAMLError):
         contents = {}
-        message, status = "Check the syntax of the local config.yml file.", 400
+        models_html = ""
+        message, status = "Check the structure of the local config.yml file.", 400
     address = contents.get("instance", "")
     address = address if isinstance(address, str) else ""
     revision = hashlib.sha256(raw).hexdigest()
-    notice = ""
-    if message:
-        role, style = ("alert", "error") if status >= 400 else ("status", "success")
-        notice = f'<p class="feedback {style}" role="{role}">{escape(message)}</p>'
+    notice = notice_html(message, status)
     state = ('<span class="state saved">Instance saved</span>' if address
              else '<span class="state">No instance saved</span>')
     content = template("settings.html").substitute(
@@ -140,7 +177,7 @@ def page(handler, message="", status=200):
         folder_icon=icon("M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"),
         lock_icon=icon("M8 10V7a4 4 0 0 1 8 0v3 M6 10h12v10H6z"),
         address=escape(address, quote=True), notice=notice, instance_state=state, revision=revision,
-        models=model_forms(contents, revision), config_path=escape(str(config)),
+        models=models_html, config_path=escape(str(config)),
         keys_path=escape(str(config.parent / "models" / ".env")),
     )
     send_html(handler, layout(content, running=True), status)
@@ -161,33 +198,47 @@ def local_action(handler):
         or "Transfer-Encoding" in handler.headers or len(handler.headers.get_all("Content-Length", [])) != 1):
         raise ValueError("invalid_request")
     size = int(handler.headers["Content-Length"])
-    if not 0 < size <= 8192:
+    is_model = handler.path == "/model"
+    if not 0 < size <= (65536 if is_model else 8192):
         raise ValueError("invalid_request")
-    fields = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
-                      keep_blank_values=True, max_num_fields=3)
-    instance_form = handler.path == "/instance"
-    expected = {"instance", "revision"} if instance_form else {"profile", "temperature", "revision"}
-    if set(fields) != expected or any(len(v) != 1 for v in fields.values()):
+    expected = {"/instance": {"instance", "revision"}, "/model": FIELDS,
+                "/model-key": {"profile", "revision", "keyRevision", "secret"}}[handler.path]
+    parsed = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
+                      keep_blank_values=True, max_num_fields=len(expected))
+    required = expected - {"default"} if is_model else expected
+    if not required <= parsed.keys() <= expected or any(len(v) != 1 for v in parsed.values()):
         raise ValueError("invalid_request")
+    fields = {name: values[0] for name, values in parsed.items()}
     config = server.data / "config.yml"
-    revision = fields["revision"][0]
     with server.settings_lock:
         def check(path):
             return LocalModels.load(path, server.identity)
 
         try:
-            if instance_form:
-                models = save_instance(config, fields["instance"][0].strip(), revision, check)
+            if handler.path == "/instance":
+                server.set_models(save_instance(config, fields["instance"].strip(), fields["revision"], check))
+                return page(handler, "Instance saved.")
+            if is_model:
+                key, models = save_model(config, fields, check)
+                server.set_models(models)
             else:
-                models = save_temperature(config, fields["profile"][0], fields["temperature"][0],
-                                          revision, check)
+                key = fields["profile"]
+                save_key(config, fields)
         except (ValueError, OSError) as error:
             if isinstance(error, ConfigError) and str(error) == "config_changed":
-                return page(handler, "The configuration changed. Review it before saving again.", 409)
+                return page(handler, "The configuration changed. Reopen the model or instance settings before saving again.", 409)
             if isinstance(error, ConfigError) and str(error) == "invalid_instance":
                 return page(handler, "Enter an HTTPS instance URL, or use HTTP on localhost, "
                             "127.0.0.1 or [::1]. Include the deployment path and omit credentials, "
                             "query parameters and fragments.", 400)
-            return page(handler, "Check the submitted value and the local configuration.", 400)
-        server.set_models(models)
-    page(handler, "Instance saved." if instance_form else "Temperature saved.")
+            message = str(error) if isinstance(error, FormError) else "Check the submitted settings and the local configuration."
+            if is_model:
+                return model_page(handler, fields["original"], message=message, status=400, submitted=fields)
+            if handler.path == "/model-key":
+                return model_page(handler, fields["profile"], message=message, status=400)
+            return page(handler, message, 400)
+    handler.send_response(303)
+    handler.send_header("Location", f"/models/edit/{quote(key, safe='')}?saved={'model' if is_model else 'key'}")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", "0")
+    handler.end_headers()
