@@ -97,11 +97,11 @@ async function main() {
         return { status: catalog.status, count: models.length, grant };
       }, local);
       await settings.bringToFront();
-      await header.getByText("Connected", {exact: true}).waitFor();
+      await header.locator(".ld-utility-actions").getByText("Connected", {exact: true}).waitFor();
       const disconnected = await page.evaluate(async ({base, grant}) =>
         (await fetch(base + "/v1/disconnect", {method: "POST", credentials: "omit",
           headers: {Authorization: "Bearer " + grant}})).status, {base: local, grant});
-      await header.getByText("Disconnected", {exact: true}).waitFor();
+      await header.locator(".ld-utility-actions").getByText("Disconnected", {exact: true}).waitFor();
       return [status, count, disconnected];
     }
     await assert.rejects(connect(blocked), /fetch|network|load failed/i);

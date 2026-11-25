@@ -91,21 +91,18 @@ body { @apply bg-lodeon-surface; }
   .drag-over { @apply outline-2 outline-lodeon-accent; }
   [id$="-heading"] { @apply scroll-mt-20; }
   @media (width < 48rem) {
-    .customizer-topbar { @apply static grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 px-3 py-2; }
-    .customizer-topbar .ld-actions { @apply col-start-2 row-start-1 gap-2; }
-    .customizer-topbar .instance-connection { @apply col-span-full row-start-2; }
+    .customizer-topbar { @apply static grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-3 py-2; }
+    .customizer-topbar .ld-actions { @apply contents; }
+    .customizer-topbar .ld-utility-actions { @apply col-start-2 row-start-1 justify-self-end; }
+    .customizer-topbar .instance-connection { @apply col-start-1 row-start-2; }
+    .customizer-topbar .ld-project-actions { @apply col-start-2 row-start-2 justify-self-end; }
     .member-palette { @apply static; }
     [id$="-heading"] { @apply scroll-mt-2; }
   }
   @media (width < 32rem) {
     .customizer-topbar .brand-name { @apply hidden; }
-    .customizer-topbar .ld-brand-wordmark { @apply h-6; }
-    .customizer-topbar { @apply grid-cols-[auto_minmax(0,1fr)]; }
-    .customizer-topbar .ld-actions, .customizer-topbar .instance-connection { @apply contents; }
-    .customizer-topbar .ld-utility-actions { @apply col-start-2 row-start-1 justify-self-end; }
-    .customizer-topbar .instance-label { @apply col-start-1 row-start-2; }
-    .customizer-topbar .instance-url { @apply col-start-2 row-start-2 w-full; }
-    .customizer-topbar [data-connection-status] { @apply col-start-1 row-start-3; }
-    .customizer-topbar .ld-actions > :first-child { @apply col-start-2 row-start-3 justify-self-end; }
+    .customizer-topbar .ld-brand-wordmark { @apply h-6 max-w-full object-contain; }
+    .customizer-topbar .instance-connection { @apply col-span-full; }
+    .customizer-topbar .ld-project-actions { @apply row-start-3; }
   }
 }

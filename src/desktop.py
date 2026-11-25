@@ -60,7 +60,7 @@ def icon(paths):
             f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{paths}"/></svg>')
 
 
-def instance_form(server):
+def instance_controls(server):
     private = server.data / PRIVATE_SETTINGS
     revision = config_revision(private, private.read_bytes())
     address = server.models.instance
@@ -68,29 +68,32 @@ def instance_form(server):
     help_text = field_help("instance", "Instance connection",
                            "Enter the URL from your LODEON tab, including its deployment path. Save it here, then choose Settings → Customize Workbench in that tab.")
     value = escape(address, quote=True) if isinstance(address, str) else ""
-    return (f'<form id="instance-link" class="instance-connection ld-project-switcher" method="post" action="/instance">'
+    form = (f'<form id="instance-link" class="instance-connection ld-project-switcher" method="post" action="/instance">'
             f'<div class="instance-label"><label for="field-instance">Instance connection</label>{help_text}</div>'
             f'<input class="instance-url" id="field-instance" name="instance" type="url" aria-describedby="help-instance" '
             f'value="{value}" placeholder="https://example.org/lodeon/" required>'
-            f'<span class="ld-assistant-badge" role="status" data-connection-status data-state="{"ready" if connected else "checking"}" '
-            f'data-instance="{value}">{"Connected" if connected else "Disconnected"}</span>'
             f'<input type="hidden" name="revision" value="{revision}"></form>')
+    status = (f'<span class="ld-assistant-badge" role="status" data-connection-status data-state="{"ready" if connected else "checking"}" '
+              f'data-instance="{value}">{"Connected" if connected else "Disconnected"}</span>')
+    return form, status
 
 
 def layout(content, *, server=None):
     connection = ""
+    connection_status = ""
     action = ""
     if server is not None:
         if not server.folder_warning and (server.data / PRIVATE_SETTINGS).is_file():
-            connection = instance_form(server)
+            connection, connection_status = instance_controls(server)
         save = ""
         if connection:
             disk = icon("M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M7 3v6h9V3 M7 21v-8h10v8")
             save = f'<button class="ld-button" type="submit" form="instance-link" aria-label="Save instance">{disk}Save</button>'
         power = icon("M12 2v10 M6 5.5a9 9 0 1 0 12 0")
-        action = (f'<div class="ld-action-group">{save}<form method="post" action="/quit">'
+        action = (f'<div class="ld-action-group ld-project-actions">{save}<form method="post" action="/quit">'
                   f'<button class="ld-button" type="submit" aria-label="Quit Customizer">{power}Quit</button></form></div>')
-    return template("desktop.html").substitute(content=content, action=action, connection=connection, **shell_assets())
+    return template("desktop.html").substitute(content=content, action=action, connection=connection,
+                                               connection_status=connection_status, **shell_assets())
 
 
 def message_page(title, explanation):
