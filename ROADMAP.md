@@ -463,15 +463,17 @@ inputs for consolidated acceptance.
 
 ### Step 7 — Consolidated Acceptance, Documentation And Closure
 
-The Assistant's connection dialog opens this repository's download table and
-setup instructions. The table links to the last successful public `main`
-builds for all five platforms and the bundled Core revision.
+The Assistant's connection dialog links to this package's GitLab Pages download
+site and the Customizer chapter in the LODEON User Guide. The download page
+offers all five rolling archives, SHA-256 checksums, the bundled Core revision
+and the download assets of published GitLab releases. The Pages job runs
+after archive acceptance on the default branch.
 The GitLab RLP push mirror supplies the Customizer commit to GitHub Actions.
 GitHub resolves GitLab Core `main` once and builds and smoke-tests all five
 native archives. A successful run triggers ordinary untagged GitLab import
 jobs. Each import checks the workflow, ref and commit. Publication requires
 five archives from the same Core revision. Routine `main` builds refresh the
-existing GitLab download links automatically. The README owns setup and retries.
+existing GitLab download links automatically. The README owns release setup and retries.
 
 **Verification, 2026-11-24.** Both Actions workflows passed actionlint and the
 GitLab configuration passed schema validation. Local CI fixtures exercised
@@ -581,6 +583,8 @@ Verification against the regular Core assembler covered a generated single-model
 ### Desktop help and saved sampling settings
 
 Help beside the day/night switch contains an offline setup guide and the build identity baked into the native archive. Published builds identify the workflow run and attempt, app version, channel, platform, UTC build time and the two source revisions. The archive smoke check compares the displayed values with that build’s inputs. The header uses the Editor’s Ready badge for a connection. Instance rows mark saved sampling overrides with **Customized**, including an explicit zero. A Linux ARM64 rolling-channel test archive with fixture CI metadata passed the extracted-app build identification, restart and provider checks.
+
+Reset settings clears only the selected instance model’s local sampling values. The existing grant immediately returns the remaining overrides.
 
 ## Proposed next settings areas
 

@@ -2,55 +2,9 @@
 
 Use your own model in the Assistant of a LODEON instance you already use. The Customizer runs on your computer. It includes its runtime and works with any instance that permits personal models for your session.
 
-## Downloads
+**[Download the app](https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-customizer/)** · **[Customizer User Guide](https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-documentation/user-guide/customizer/)**
 
-Choose **latest** for your computer. These links become available after the first successful `main` pipeline and follow each subsequent successful build. All five archives undergo automated checks. The current `latest` workflow produces Windows builds without release signing and macOS builds without Developer ID signing or notarization.
-
-| Platform | Latest download |
-| --- | --- |
-| Windows · x64 | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-windows-x86_64.zip?job=native-app%3A%20%5Bwindows-x86_64%5D) |
-| macOS · Apple silicon | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-arm64.zip?job=native-app%3A%20%5Bmacos-arm64%5D) |
-| macOS · Intel | [Download ZIP](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-x86_64.zip?job=native-app%3A%20%5Bmacos-x86_64%5D) |
-| Linux · x64 | [Download TAR.GZ](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-x86_64.tar.gz?job=native-app%3A%20%5Blinux-x86_64%5D) |
-| Linux · ARM64 | [Download TAR.GZ](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-arm64.tar.gz?job=native-app%3A%20%5Blinux-arm64%5D) |
-
-[Latest build checksums](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/SHA256SUMS?job=accepted-archives) · [Bundled Core revision](https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/CORE-REVISION?job=accepted-archives)
-
-If your browser displays a development download as text, use **Save link as** on the platform link and keep the `.zip` or `.tar.gz` extension. [GitLab single-file artifact downloads](https://docs.gitlab.com/api/job_artifacts/#download-a-single-artifact-file-by-reference-name)
-
-## Get the app and connect your first model
-
-1. In the Assistant, open **Settings → Customize Workbench**. Choose **Download LODEON Customizer** to open [Downloads](#downloads) in a new tab. **User Guide** opens these instructions. If the menu entry is missing, check with your instance operator whether Customizer connections are enabled for your session.
-2. Choose the latest download for your computer. Extract the entire archive to a folder on your computer and open the app shown below. Keep the extracted files together.
-3. The app opens a **local settings page** in your default browser. Enter the URL from your LODEON tab under **Instance connection** in the header, including its deployment path, and choose **Save**. Use HTTPS for a hosted instance, for example `https://stories.example.org/lodeon/`. On the same computer you can also use HTTP with `localhost`, `127.0.0.1` or `[::1]`, for example `http://localhost:7014/lodeon/`. The permission applies to every path on that exact scheme, host and port.
-   Use the moon or sun button in the header to switch between the Editor’s day and night themes. The app starts with your system preference and remembers your choice in this browser across pages and restarts.
-4. On first launch the model list is empty. Choose **Models → Personal models → Add model** and follow [Configure a personal model](#configure-a-personal-model).
-5. Return to the **original LODEON tab**, choose **Connect** in the same dialog and allow local-network access if your browser asks. Once the status turns green, close the dialog and select the model marked **Personal**. If you configured a personal default, it is already selected. Ask your question as usual.
-
-| Your computer | Platform | Open after extraction |
-| --- | --- | --- |
-| Windows with an Intel or AMD 64-bit processor | **Windows · x64** (ZIP) | `LODEON-Customizer.exe` |
-| Mac with an Apple M-series chip | **macOS · Apple silicon** (ZIP) | `LODEON-Customizer.app` |
-| Mac with an Intel processor | **macOS · Intel** (ZIP) | `LODEON-Customizer.app` |
-| Linux with glibc on an Intel or AMD 64-bit processor | **Linux · x64** (tar.gz) | `LODEON-Customizer` |
-| Linux with glibc on a 64-bit ARM processor | **Linux · ARM64** (tar.gz) | `LODEON-Customizer` |
-
-On a Mac, **Apple menu → About This Mac** identifies the chip.
-
-You can change the instance in the header from any model or broker form. Saving the instance returns to the overview. If a form has unsaved edits, you can cancel the switch and finish editing. Choose the **ⓘ** beside a field label to read its help. The same control works with the keyboard.
-
-Choose **Help** (the question mark beside the day/night switch) for setup instructions and **Build information**. When reporting a problem with a **latest** download, include the workflow run and attempt, platform, and the Customizer and Core revisions. These values are recorded when the app is built and work offline. Local builds show their UTC build time and identify working tree changes when built from a Git checkout.
-
-## Configure a personal model
-
-1. Choose **Models → Personal models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
-2. The first model or broker is preselected as the package default. **Use as my default model** also selects this target when you connect. Under **Advanced settings** you can set temperature, top P, reasoning effort, prompt caching, limits, costs and Ollama keep-alive. The Core runtime validates the selected provider’s settings.
-3. Choose **Save model**. For OpenAI and Anthropic, the edit page now offers a password field. Enter the **Provider API key** and choose **Save API key**. For a keyed OpenAI-compatible endpoint, select **Use a personal API key** when setting up the profile. A saved key can be replaced in this field and is never displayed.
-4. In LODEON, connect or reconnect the tab to refresh the catalog. Use **Edit** beside a personal model to change it later.
-
-For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. Provider keys entered in the form go into `.env` in the package folder.
-
-To remove a personal model or broker, choose **Remove** beside its name and confirm on the next page. If a broker uses the model, open the listed broker and change its membership first. Removing your personal default also clears that default. Provider keys and routing prompt files stay in the settings folder. Reconnect the LODEON tab to refresh its selector.
+This README covers the package format, local development, verification and publication. The User Guide walks through connecting a workbench, adding a personal model, editing an instance model and resetting its settings.
 
 ## Choose, reload or install a local package
 
@@ -76,32 +30,9 @@ On first launch the app uses the following default folder.
 | macOS | `~/Library/Application Support/LODEON-Customizer/data/` |
 | Linux | `$XDG_DATA_HOME/LODEON-Customizer/data/`, defaulting to `~/.local/share/LODEON-Customizer/data/` |
 
-## Customize an instance model
+## Instance settings and connections
 
-1. Save the instance address and connect from **Settings → Customize Workbench** in that LODEON tab.
-2. Open **Models → Instance models → Refresh list** in the Customizer. Choose **Edit settings** beside a model.
-3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**. The instance list marks the model **Customized** while it has at least one saved override.
-4. Select the same instance model in LODEON. **Settings → Model information** shows the effective values when opened and refreshes them while visible. Returning to the connected LODEON window also refreshes the sampling settings. Clearing both overrides restores the instance values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
-
-The Customizer saves these overrides under `instanceModelSettings` in `.data/customizer.yml`, keyed by the saved instance URL and model ID. Projects retain the ordinary model ID. A changed list of available instance models requires a new connection.
-
-## Configure a broker
-
-Choose **Models → Personal models → Add broker**. Select the local and connected instance models under **Broker members**. Each selected member reveals its routing hint. You can also enter an offline member’s ID manually. Choose the router model and describe its routing objective.
-
-New tasks start empty. Under **Task routing**, drag one selected model into **Worker** for each fixed task, or one or more into **Candidates** for a routed task. Add **Fallbacks** in the order they should be tried, if needed. Drag an assignment between areas to move it, onto another chip to reorder it, or back to **Selected models** to remove it. You can also select a model and choose **Assign**, use **←** to move it earlier, or **×** to remove it. When switching a task with several candidates to **Fixed**, choose its single worker explicitly.
-
-Choose **Save broker** to apply your assignments. If any task uses routing, enter your Markdown in **Routing prompt** on the broker’s edit page, then choose **Save prompt**. For example, `Choose one of {{candidates}} for {{task}} given {{question}}. Return the model ID.` The form saves the registry entry and Markdown in the selected folder. A fixed-only broker is ready after saving its policy. Reconnect your LODEON tab and select the broker. Use **Edit** beside the broker to revisit these settings.
-
-## Reconnect, disconnect or quit
-
-Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. The status chip beside the day/night and Help buttons shows **Connected** while there is an active grant for the saved instance. It returns to **Disconnected** after the last grant ends. The connected tab highlights **Customize Workbench** in the Settings menu. After an Editor reload, a change to the personal model or broker catalog, a package reload or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
-
-If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
-
-If the Linux desktop cannot open the browser automatically, open <http://127.0.0.1:8765/> in your browser. If the page is unreachable, run `./LODEON-Customizer --no-browser` from the extracted app folder, leave the terminal open and reload the page.
-
-Choose **Disconnect** to release just the current tab. Choose **Quit** in the local settings header to stop the app. Closing the local settings tab leaves it running. Your local configuration is available the next time you start it.
+The Customizer stores temperature and Top P overrides in `instanceModelSettings` in `.data/customizer.yml`, keyed by the saved instance URL and model ID. **Reset settings** removes that model’s overrides. The connected tab refreshes its effective values when Model information opens, while it is visible, or when the window regains focus. Changes to the personal model or broker catalog require reconnection.
 
 The hosted instance owns orchestration, tools, SPARQL and final synthesis. The connected tab passes prepared model calls to the Customizer and returns their results to Core. A mixed broker uses the same connection for its local workers. Core calls its authorized instance workers directly. Provider keys remain local. Future capabilities such as Git transfer require separate authorization. [Protocol](PROTOCOL.md) · [Roadmap and browser evidence](ROADMAP.md)
 
@@ -154,7 +85,7 @@ With native Python 3.12 you can also run the build script with `python3.12` or, 
 
 Merge any required Core changes into **lodeon-core/main** first. Then merge the tested Customizer changes into **lodeon-customizer/main on GitLab RLP**. That is the complete routine release procedure. The GitLab push mirror starts **Build desktop apps** on GitHub. It resolves the public GitLab Core `main` once, builds the same Customizer and Core revisions on five native hosts, and tests each extracted archive. [GitHub build runs](https://github.com/digicademy/lodeon-customizer/actions/workflows/desktop.yml)
 
-After all five pass, **Send successful build to GitLab** starts a publication pipeline for the mirrored ref. Ordinary GitLab instance runners import the archives from that exact GitHub run. They verify its workflow, ref and Customizer commit and check that all archives used one Core revision. Once **accepted-archives** succeeds on `main`, the five links under **Downloads** and their checksums refer to the new build. A failed build leaves the previous successful downloads available. [GitLab publication pipelines](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/pipelines)
+After all five pass, **Send successful build to GitLab** starts a publication pipeline for the mirrored ref. Ordinary GitLab instance runners import the archives from that exact GitHub run. They verify its workflow, ref and Customizer commit and check that all archives used one Core revision. Once **accepted-archives** succeeds on `main`, the [download page](https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-customizer/) offers the new build and its checksums. A subsequent Pages job deploys the site on the main branch. The site reads published versioned downloads from the public GitLab Releases API. A failed build leaves the previous successful downloads available. [GitLab publication pipelines](https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/pipelines)
 
 ### One-time setup for maintainers
 
@@ -167,7 +98,7 @@ After all five pass, **Send successful build to GitLab** starts a publication pi
 
 The trigger starts a pipeline. The read token downloads Actions artifacts. Keep the GitHub credential used for GitLab push mirroring separate. The public Core checkout needs no credential. [GitLab pipeline triggers](https://docs.gitlab.com/ci/triggers/) · [GitHub artifact download permissions](https://docs.github.com/en/rest/actions/artifacts#download-an-artifact) · [GitLab artifact retention](https://docs.gitlab.com/ci/jobs/job_artifacts/#keep-artifacts-from-most-recent-successful-jobs)
 
-**First publication.** Follow the mirrored commit on the GitHub Actions page and then the GitLab pipeline linked in the handoff job log. Open a download and **SHA256SUMS** from this README in a signed-out browser. If the handoff fails after a successful build, fix the trigger setup and re-run **Send successful build to GitLab** on GitHub. If the import fails, check the read token and retry the failed GitLab job. For a GitLab runner error `413 Request Entity Too Large`, check the project's maximum job artifact size against the largest single platform archive. A superseded commit is skipped or fails the SHA check if the ref moves during the handoff.
+**First publication.** Follow the mirrored commit on the GitHub Actions page and then the GitLab pipeline linked in the handoff job log. Open a download and **SHA256SUMS** from the download page in a signed-out browser. If the handoff fails after a successful build, fix the trigger setup and re-run **Send successful build to GitLab** on GitHub. If the import fails, check the read token and retry the failed GitLab job. For a GitLab runner error `413 Request Entity Too Large`, check the project's maximum job artifact size against the largest single platform archive. A superseded commit is skipped or fails the SHA check if the ref moves during the handoff.
 
 ### Optional versioned publication
 

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Download LODEON Customizer for macOS, Windows or Linux and connect your models to the LODEON Assistant.">
+  <title>Download LODEON Customizer</title>
+  <link rel="icon" href="lodeon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="releases.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to downloads</a>
+  <header><div class="wrap bar">
+    <a class="brand" href="./"><img src="lodeon.svg" alt="" width="32" height="40"><span>LODEON<small>Customizer</small></span></a>
+    <nav aria-label="Resources"><a href="#versions">Versioned releases</a><a href="https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-documentation/user-guide/customizer/">User Guide</a></nav>
+  </div></header>
+  <main class="wrap" id="main">
+    <h1>Download LODEON Customizer</h1>
+    <p class="intro">Bring your own models to the LODEON Assistant, or adjust a model your workbench already offers. The app keeps your provider keys in local settings.</p>
+    <div class="steps">
+      <details open id="download"><summary><span class="number">1</span> Download the app</summary>
+        <div class="step">
+          <p>Choose the latest build for your computer. Open the archive, extract its contents and launch <strong>LODEON-Customizer</strong>.</p>
+          <div class="platforms">
+            <section><h2>macOS</h2><p>Find your chip under Apple menu → About This Mac.</p>
+              <a class="download" href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-arm64.zip?job=native-app%3A%20%5Bmacos-arm64%5D">Apple silicon · ZIP <span aria-hidden="true">↓</span></a>
+              <a class="download" href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-macos-x86_64.zip?job=native-app%3A%20%5Bmacos-x86_64%5D">Intel · ZIP <span aria-hidden="true">↓</span></a>
+            </section>
+            <section><h2>Windows</h2><p>For PCs with a 64-bit Intel or AMD processor.</p>
+              <a class="download" href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-windows-x86_64.zip?job=native-app%3A%20%5Bwindows-x86_64%5D">Windows x64 · ZIP <span aria-hidden="true">↓</span></a>
+            </section>
+            <section><h2>Linux</h2><p>Choose the processor used by your Linux system with glibc.</p>
+              <a class="download" href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-x86_64.tar.gz?job=native-app%3A%20%5Blinux-x86_64%5D">Linux x64 · TAR.GZ <span aria-hidden="true">↓</span></a>
+              <a class="download" href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/LODEON-Customizer-latest-linux-arm64.tar.gz?job=native-app%3A%20%5Blinux-arm64%5D">Linux ARM64 · TAR.GZ <span aria-hidden="true">↓</span></a>
+            </section>
+          </div>
+          <p class="fine">Latest builds update automatically. Windows builds are unsigned. macOS builds are ad-hoc signed and have no Apple notarization.</p>
+          <div class="checks"><a href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/SHA256SUMS?job=accepted-archives">Download SHA-256 checksums</a><a href="https://gitlab.rlp.net/api/v4/projects/adwmainz%2Fdigicademy%2Flodeon%2Flodeon-customizer/jobs/artifacts/main/raw/dist/CORE-REVISION?job=accepted-archives">Download Core revision</a></div>
+        </div>
+      </details>
+      <details><summary><span class="number">2</span> Connect your workbench</summary>
+        <div class="step"><p>The app opens a settings page in your browser. Paste your LODEON workbench address into <strong>Instance connection</strong> and choose <strong>Save</strong>.</p>
+          <p>In your original LODEON tab, choose <strong>Settings → Customize Workbench → Connect</strong>. Keep the app running.</p></div>
+      </details>
+      <details><summary><span class="number">3</span> Choose your model</summary>
+        <div class="step"><p>In the Customizer, use <strong>Personal models → Add model</strong> to add your own. After saving, reconnect the LODEON tab and select the model in the Assistant.</p>
+          <p>Already using a workbench model? Choose <strong>Instance models → Edit settings</strong> to adjust it. <strong>Reset settings</strong> restores its original values.</p>
+          <a href="https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-documentation/user-guide/customizer/">Open the Customizer User Guide →</a></div>
+      </details>
+    </div>
+    <section id="versions" class="versions"><h2>Versioned releases</h2>
+      <p>Choose a reviewed release when you want to keep using the same version.</p>
+      <div id="release-list" aria-live="polite"></div>
+      <a href="https://gitlab.rlp.net/adwmainz/digicademy/lodeon/lodeon-customizer/-/releases">All releases on GitLab ↗</a>
+    </section>
+  </main>
+</body>
+</html>

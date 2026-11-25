@@ -67,7 +67,7 @@ def publish():
     except HTTPError as error:
         if error.code != 404:
             raise
-        guide = f"{os.environ['CI_PROJECT_URL']}/-/blob/{quote(tag, safe='')}/README.md"
+        guide = "https://adwmainz.pages.gitlab.rlp.net/digicademy/lodeon/lodeon-documentation/user-guide/customizer/"
         payload = {"tag_name": tag, "name": f"LODEON Customizer {version}",
                    "description": f"Choose the download for your computer below. [Setup and user guide]({guide}).",
                    "assets": {"links": links}}

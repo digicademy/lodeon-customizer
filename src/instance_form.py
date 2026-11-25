@@ -46,13 +46,17 @@ def render_instance(model, overrides, revision):
 <fieldset><legend>Personal sampling settings</legend>
 <p class="hint">Leave either field empty to use the instance setting. The instance manages the provider connection, reasoning settings and limits.</p>
 <div class="fields">{"".join(fields)}</div></fieldset>
-<footer><button class="ld-button">Save settings</button><a href="/">Back to settings</a></footer></form>'''
+<footer><button class="ld-button">Save settings</button>
+<button class="ld-button" type="submit" name="reset" value="1" formnovalidate>Reset settings</button>
+<a href="/">Back to settings</a></footer></form>'''
 
 
 def save_sampling(config, form, models, check):
     key = form["profile"]
     try:
-        patch = {k: float(form[k]) for k in ("temperature", "topP") if form[k].strip()}
+        patch = {} if form.get("reset") == "1" else {
+            k: float(form[k]) for k in ("temperature", "topP") if form[k].strip()
+        }
         validate_instance_model_settings({key: patch})
     except (ValueError, ConfigResolverError):
         raise FormError("Enter a temperature from 0 to 2 and Top P from 0.000001 to 1.") from None

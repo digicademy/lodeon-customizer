@@ -101,6 +101,17 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(request("POST", "/instance-model", origin=local, form=form)[0], 303)
         self.assertEqual(json.loads(share(token)[1]), {"worker": {"temperature": 0}})
         self.assertIn(">Customized<", request("GET", "/")[1])
+        edit = request("GET", "/instance-models/edit/worker")[1]
+        self.assertIn('name="reset" value="1"', edit)
+        reset = {**form, "reset": "1", "temperature": "invalid"}
+        self.assertEqual(request("POST", "/instance-model", origin=local, form=reset)[0], 409)
+        reset["revision"] = config_revision(private, private.read_bytes())
+        self.assertEqual(request("POST", "/instance-model", origin=local, form=reset)[0], 303)
+        self.assertEqual(share(token), (200, "{}"))
+        self.assertNotIn(">Customized<", request("GET", "/")[1])
+        self.assertNotIn("instanceModelSettings", yaml.safe_load(private.read_bytes()))
+        form["revision"] = config_revision(private, private.read_bytes())
+        self.assertEqual(request("POST", "/instance-model", origin=local, form=form)[0], 303)
         broker = broker_form.values_for("", {}, None)
         broker.update(label="Catalog broker", members="worker | Hosted model", objective="Choose a worker",
                       revision=revision(), **{"query-strategy": "routed"})

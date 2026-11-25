@@ -282,8 +282,9 @@ def model_get(handler):
         return broker_page(handler, url.path.removeprefix("/brokers/edit/"),
                            message="Saved. Reconnect your LODEON tab to use these changes." if url.query == "saved" else "")
     if url.path.startswith("/instance-models/edit/"):
-        return instance_page(handler, url.path.removeprefix("/instance-models/edit/"),
-                             "Settings saved. Open Model information in the connected LODEON tab to see the effective values." if url.query == "saved" else "")
+        message = {"saved": "Settings saved. Open Model information in the connected LODEON tab to see the effective values.",
+                   "reset": "Instance settings restored."}.get(url.query, "")
+        return instance_page(handler, url.path.removeprefix("/instance-models/edit/"), message)
     if url.path == "/models/new":
         return model_page(handler)
     if url.path.startswith("/models/edit/"):
@@ -381,7 +382,7 @@ def local_action(handler):
         raise ValueError("invalid_request")
     expected = {"/models/remove": {"profile", "revision"}, "/brokers/remove": {"profile", "revision"},
                 "/broker": broker_form.FIELDS, "/broker-prompt": {"profile", "revision", "promptRevision", "content"},
-                "/instance-model": {"profile", "revision", "temperature", "topP"}, "/folder": {"folder", "method", "current"}, "/package": {"packageId", "version", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
+                "/instance-model": {"profile", "revision", "temperature", "topP", "reset"}, "/folder": {"folder", "method", "current"}, "/package": {"packageId", "version", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
                 "/model-key": {"profile", "revision", "keyRevision", "secret"}}[handler.path]
     parsed = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
                       keep_blank_values=True, max_num_fields=None if handler.path == "/broker" else len(expected))
@@ -402,7 +403,9 @@ def local_action(handler):
                 del parsed[field]
         if members and len(parsed.get("members", [])) == 1:
             parsed["members"] = ["\n".join([*members, parsed["members"][0]])]
-    required = expected - {"default"}
+    if handler.path == "/instance-model" and "reset" in parsed and parsed["reset"] != ["1"]:
+        raise ValueError("invalid_request")
+    required = expected - {"default", "reset"}
     if not required <= parsed.keys() <= expected or any(len(v) != 1 for v in parsed.values()):
         raise ValueError("invalid_request")
     fields = {name: values[0] for name, values in parsed.items()}
@@ -450,7 +453,8 @@ def local_action(handler):
                     return page(handler, "Reconnect your LODEON tab to load its available models.", 409)
                 saved = save_sampling(private, fields, server.models, check_private)
                 server.models.instance_settings = saved.instance_settings
-                location = f"/instance-models/edit/{quote(key, safe='')}?saved"
+                notice = "reset" if fields.get("reset") == "1" else "saved"
+                location = f"/instance-models/edit/{quote(key, safe='')}?{notice}"
             elif handler.path == "/broker":
                 key, models = broker_form.save_broker(config, fields, check)
                 server.set_models(models)

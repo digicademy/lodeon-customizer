@@ -9,7 +9,7 @@ workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "trigger" && ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/)'
 
-stages: [import, review, acceptance]
+stages: [import, review, acceptance, publish]
 
 default:
   image: alpine:3.22
@@ -87,3 +87,15 @@ accepted-archives:
       fi
   artifacts:
     paths: [dist/SHA256SUMS, dist/CORE-REVISION]
+
+download-page:
+  stage: publish
+  needs:
+    - job: accepted-archives
+      artifacts: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - test -s pages/index.html && test -s pages/styles.css && test -s pages/releases.js && test -s pages/lodeon.svg
+  pages:
+    publish: pages
