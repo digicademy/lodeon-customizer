@@ -166,11 +166,13 @@ class ModelHandler(BaseHTTPRequestHandler):
                     if self.path in ("/?removed=model", "/?removed=broker"):
                         noun = self.path.split("=")[1]
                         return page(self, f"Personal {noun} removed. Reconnect your LODEON tab to refresh its model list.")
+                    if self.path == "/connection-status":
+                        return self._reply(200, {"connected": self.server.grants.connected(), "instance": self.server.models.instance})
                     if self.path == "/":
                         return page(self)
                     if self.path.startswith(("/models/", "/brokers/", "/instance-models/")):
                         return model_get(self)
-            if self.command == "POST" and self.path in ("/instance", "/model", "/model-key", "/folder", "/quit", "/broker", "/broker-prompt", "/instance-model", "/models/remove", "/brokers/remove"):
+            if self.command == "POST" and self.path in ("/instance", "/package", "/model", "/model-key", "/folder", "/quit", "/broker", "/broker-prompt", "/instance-model", "/models/remove", "/brokers/remove"):
                 return local_action(self)
             with self.server.settings_lock:
                 grants, models = self.server.grants, self.server.models

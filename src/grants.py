@@ -56,6 +56,11 @@ class Grants:
         with self.lock:
             self.get(origin, token).instance_models = models
 
+    def connected(self):
+        with self.lock:
+            now = time.monotonic()
+            return any(grant.ends > now for grant in self.active.values())
+
     def visible_models(self):
         with self.lock:
             for grant in reversed(self.active.values()):

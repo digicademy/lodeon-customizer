@@ -55,7 +55,7 @@ async function main() {
     assert.equal(save.y, quit.y);
     assert.equal(save.height, quit.height);
     assert.equal((await bounds(settings.getByRole("heading", {name: "Models", exact: true}))).y,
-                 (await bounds(settings.getByRole("heading", {name: "Local files"}))).y);
+                 (await bounds(settings.getByRole("heading", {name: "Local package"}))).y);
     await settings.locator("header").getByRole("textbox", { name: "Instance connection", exact: true }).fill(approved + "/lodeon/");
     await settings.getByRole("button", { name: "Save instance" }).click();
     await settings.getByText("Instance saved.").waitFor();
@@ -79,7 +79,7 @@ async function main() {
       }
     }
     async function connect(page) {
-      return page.evaluate(async base => {
+      const { status, count, grant } = await page.evaluate(async base => {
         const options = { credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" };
         const pair = await fetch(base + "/v1/connect", { ...options, method: "POST",
           headers: { "Content-Type": "application/json" }, body: JSON.stringify({models: true}) });
@@ -88,9 +88,15 @@ async function main() {
         const auth = { ...options, headers: { Authorization: "Bearer " + grant } };
         const catalog = await fetch(base + "/v1/targets", auth);
         const { models } = await catalog.json();
-        const disconnected = await fetch(base + "/v1/disconnect", { ...auth, method: "POST" });
-        return [catalog.status, models.length, disconnected.status];
+        return { status: catalog.status, count: models.length, grant };
       }, local);
+      await settings.bringToFront();
+      await header.getByText("Connected", {exact: true}).waitFor();
+      const disconnected = await page.evaluate(async ({base, grant}) =>
+        (await fetch(base + "/v1/disconnect", {method: "POST", credentials: "omit",
+          headers: {Authorization: "Bearer " + grant}})).status, {base: local, grant});
+      await header.getByText("Disconnected", {exact: true}).waitFor();
+      return [status, count, disconnected];
     }
     await assert.rejects(connect(blocked), /fetch|network|load failed/i);
     assert.deepEqual(await connect(allowed), [200, 0, 204]);
@@ -103,7 +109,7 @@ async function main() {
     await settings.getByText("Advanced settings", { exact: true }).click();
     await settings.getByLabel("Temperature", { exact: true }).fill("0.4");
     await settings.getByRole("button", { name: "Save model" }).click();
-    await settings.getByRole("status").waitFor();
+    await settings.locator("main").getByRole("status").waitFor();
     assert.deepEqual(await connect(allowed), [200, 1, 204]);
     await settings.goto(local);
     await settings.getByRole("link", { name: "Add broker" }).click();

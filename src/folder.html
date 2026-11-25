@@ -1,6 +1,6 @@
     <form class="panel-body" method="post" action="/folder">
       $folder_field
-      <input type="hidden" name="revision" value="$revision">
+      <input type="hidden" name="current" value="$current">
       <div class="input-row"><button class="ld-button" name="method" value="browse">Choose folder…</button>
-      <button class="ld-button" name="method" value="open">Open folder</button></div>
+      <button class="ld-button" name="method" value="load" data-folder-action>$folder_action</button></div>
     </form>

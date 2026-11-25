@@ -12,7 +12,7 @@ from lodeon_model_runtime.wire import validate_payload
 from resolver.configuration_schema import validate_delegated_broker
 from resolver.errors import ConfigResolverError
 
-from .configuration import ConfigError, instance_origin, load_configuration, load_routing_prompts, read_model_environment
+from .configuration import ConfigError, PRIVATE_SETTINGS, read_private_settings, instance_origin, load_configuration, load_routing_prompts, read_model_environment
 
 
 def _resolve(configured, environment):
@@ -57,14 +57,15 @@ class LocalModels:
         self._routing_prompts = {}
 
     @classmethod
-    def load(cls, path: Path, service_id: UUID, environment: Mapping[str, str] | None = None):
+    def load(cls, path: Path, service_id: UUID, environment: Mapping[str, str] | None = None, *, private_path=None):
         try:
             config = load_configuration(path)
             assistant = config["assistant"]
             for profile_id, profile in assistant["modelProfiles"].items():
                 validate_model_profile_contract(profile_id, profile)
-            models = cls(service_id, assistant, path.parent / "models" / ".env", environment, config.get("instance", ""))
-            models.instance_settings = config.get("instanceModelSettings", {}).get(models.instance, {})
+            private = read_private_settings(private_path or path.parent / PRIVATE_SETTINGS)
+            models = cls(service_id, assistant, path.parent / ".env", environment, private.get("instance", ""))
+            models.instance_settings = private.get("instanceModelSettings", {}).get(models.instance, {})
             models._routing_prompts = load_routing_prompts(path.parent, assistant["promptRegistryFile"], models.brokers)
             return models
         except (OSError, ValueError, ConfigResolverError, RecursionError):

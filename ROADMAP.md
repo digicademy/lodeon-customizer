@@ -87,7 +87,7 @@ here, not in a second model-only repository.
   create the per-user `data/config.yml` and stable service identity in the
   OS user-data directory. The owner can select a different folder or reopen an existing configuration. Zero models is valid. Restarts and replacement of
   the app preserve personal files.
-- Resolve `apiKeyEnv` from `data/models/.env` at invocation. The packaged
+- Resolve `apiKeyEnv` from `data/.env` at invocation. The packaged
   defaults contain only public configuration. Build, sign and test each
   platform archive in a pipeline from one resolved Core commit. Public
   `latest` requires Customizer `main` and Core `main`. Developers test locally
@@ -98,7 +98,7 @@ here, not in a second model-only repository.
   `data/config.yml`, and the Core Package resolver and schema. The local forms save the instance URL and create or edit personal model
   profiles, including the default selection, provider, generation, caching,
   limits and costs. A separate write-only form saves provider keys to
-  `data/models/.env`. Forms also edit canonical broker policies and routed Markdown prompts. A save must retain
+  `data/.env`. Forms also edit canonical broker policies and routed Markdown prompts. A save must retain
   unrelated YAML settings and detect intervening file edits before replacing
   them. Invalid edits leave the last valid configuration available. Rotating
   a key under the same name updates only the model credentials file. The UI
@@ -561,7 +561,7 @@ at 320 pixels. The existing broker policy and delegation wire format are unchang
 The native build compiles the selected Core Editor's Tailwind stylesheet with its
 locked PostCSS tools and bundles the Editor's day/night toggle. The header uses
 the Editor action buttons and puts the instance label before the URL input at
-every width. Models and Local files share one heading baseline on desktop.
+every width. Models and Local package share one heading baseline on desktop.
 Browser review compared the live Editor's New and Import controls with Save
 and Quit. All four measured 38 px high with 12 px horizontal padding and an
 8 px icon gap. Checks covered 320–1440 px, switching themes, reloading,
@@ -571,6 +571,12 @@ Field labels have expandable help and descriptive
 text areas span both form columns. Broker hints appear beneath selected
 members. New task assignments require an explicit choice in the form and on
 submission. The package checks cover rejected empty fixed and routed tasks.
+
+### Portable local packages
+
+The selected directory is an installable LODEON package. Local package edits the manifest ID and version. Canonical model YAML and routing prompts are shareable. Root `.env` and `.data/customizer.yml` stay local under the existing Core assembly exclusions. Reload reads the disk configuration and revokes the previous grants. The desktop header shows whether any grant is active for the saved instance.
+
+Verification against the regular Core assembler covered a generated single-model package and the same package with a routed broker and its Markdown prompt. Both resolved with the configured default and excluded the private state and credentials. A local Brave session exercised manifest editing, disk reload and both connection transitions at widths from 320 to 1440 pixels.
 
 ## Proposed next settings areas
 

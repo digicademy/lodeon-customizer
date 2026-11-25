@@ -154,7 +154,7 @@ def save_model(path, fields, check):
             variable = fields["keyVariable"].strip() or profile.get("apiKeyEnv")
             if not variable:
                 stem = "LODEON_" + key.upper().replace("-", "_") + "_API_KEY"
-                reserved = set(read_model_environment(path.parent / "models" / ".env"))
+                reserved = set(read_model_environment(path.parent / ".env"))
                 for other in profiles.values():
                     reserved.update((other.get("baseURLEnv"), other.get("apiKeyEnv")))
                 variable = stem
@@ -216,12 +216,12 @@ def save_key(config, fields):
     value = fields["secret"]
     if not value.strip() or any(c in value for c in "\r\n\0"):
         raise FormError("Enter a non-empty, single-line API key.")
-    path = config.parent / "models" / ".env"
+    path = config.parent / ".env"
     revision = fields["keyRevision"]
     if key_revision(path) != revision:
         raise ConfigError("config_changed")
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with NamedTemporaryFile(dir=path.parent, delete=False) as pending:
+    # Stage credentials inside the private directory excluded by Core assembly.
+    with NamedTemporaryFile(dir=config.parent / ".data", delete=False) as pending:
         if path.exists():
             pending.write(path.read_bytes())
     candidate = Path(pending.name)
@@ -277,6 +277,6 @@ def render_fields(values):
         "pricing": field("currency", "Currency", "Three-letter currency code for the rates below, for example USD.", attrs='maxlength="3" placeholder="USD"') +
                    "".join(field(k, label, rate_help[k], kind="number", attrs='min="0" step="any"') for k, label in RATES.items()),
         "identifiers": field("id", "Profile ID", "Stable identifier used in configuration and broker assignments. Leave blank when creating a model to derive it from the display name.", attrs="readonly" if values.get("original") else 'placeholder="Generated from display name"') +
-                       field("endpointSource", "Endpoint source", "Use a literal URL or the name of a variable defined in the local models/.env file.", options={"baseURL": "URL", "baseURLEnv": "Environment variable"}) +
-                       field("keyVariable", "API key variable", "Name of the entry in models/.env that holds the key. Leave blank to let the Customizer choose a name.", attrs='placeholder="Assigned automatically"'),
+                       field("endpointSource", "Endpoint source", "Use a literal URL or the name of a variable defined in the local .env file.", options={"baseURL": "URL", "baseURLEnv": "Environment variable"}) +
+                       field("keyVariable", "API key variable", "Name of the entry in .env that holds the key. Leave blank to let the Customizer choose a name.", attrs='placeholder="Assigned automatically"'),
     }

@@ -42,19 +42,29 @@ You can change the instance in the header from any model or broker form. Saving 
 ## Configure a personal model
 
 1. Choose **Models → Personal models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
-2. Select **Use as my default model** if you want LODEON to select this profile when you connect. Under **Advanced settings** you can set temperature, top P, reasoning effort, prompt caching, limits, costs and Ollama keep-alive. The Core runtime validates the selected provider’s settings.
+2. The first model or broker is preselected as the package default. **Use as my default model** also selects this target when you connect. Under **Advanced settings** you can set temperature, top P, reasoning effort, prompt caching, limits, costs and Ollama keep-alive. The Core runtime validates the selected provider’s settings.
 3. Choose **Save model**. For OpenAI and Anthropic, the edit page now offers a password field. Enter the **Provider API key** and choose **Save API key**. For a keyed OpenAI-compatible endpoint, select **Use a personal API key** when setting up the profile. A saved key can be replaced in this field and is never displayed.
 4. In LODEON, connect or reconnect the tab to refresh the catalog. Use **Edit** beside a personal model to change it later.
 
-For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. **Local files** shows its location and the separate `models/.env` file used for provider keys.
+For example, a local Ollama model can use display name `My Ollama`, provider `Ollama` and model name `gemma4:12b` if that model is installed. Saving writes directly to `assistant.modelProfiles` in your local `config.yml`. Provider keys entered in the form go into `.env` in the package folder.
 
 To remove a personal model or broker, choose **Remove** beside its name and confirm on the next page. If a broker uses the model, open the listed broker and change its membership first. Removing your personal default also clears that default. Provider keys and routing prompt files stay in the settings folder. Reconnect the LODEON tab to refresh its selector.
 
-## Choose or reopen a settings folder
+## Choose, reload or install a local package
 
-Under **Local files**, choose **Choose folder…** to browse, or enter an absolute path and choose **Open folder**. Select the directory that directly contains `config.yml`. The app loads that directory’s models, brokers, routing prompts, service identity and `models/.env`. Choosing an empty directory starts a separate configuration. Reopen the original directory to return to it. The app remembers your selection when you quit and reopen it. If a selected drive is unavailable, the app asks you to open a folder before it accepts model connections.
+Under **Local package**, use **Choose folder…** to select a directory. You can also type its absolute path and select **Use folder**. An empty directory starts a package. The app remembers the selected directory for the next launch. **Reload configuration** reads the current package from disk, including edits made in a text editor. Switching or reloading revokes active connections. Return to **Customize Workbench** in the LODEON tab to reconnect.
 
-If you choose a Git working tree for your YAML and prompts, keep `models/.env` and the machine-specific `.service-id` out of version control. The Customizer only opens and saves local files.
+Set **Package ID** and **Version**, then choose **Save package**. A new manifest starts with `local/<folder-name>` and version `0.1.0`. Each package in an instance registry needs a distinct ID.
+
+| File | Purpose |
+| --- | --- |
+| `lodeon.package.yml` | Core package manifest with the ID and version. |
+| `config.yml` | Portable Core configuration, including model and broker definitions. Routed broker prompts belong under the configured prompt registry. |
+| `.env` | Created when you save a provider key. You can also add endpoint variables here. |
+| `.data/customizer.yml` | Private service identity, approved instance URL and per-instance sampling preferences. |
+| `.gitignore` | Excludes local credentials, private settings, runtime data and caches. |
+
+To install the package on an instance, add the directory that contains the manifest to the ordered `packages` list in that instance’s package registry. Include the manifest, configuration and any routing prompts when sharing it. Core excludes `.data` and `.env` from assembly. Supply provider variables through the target instance’s environment and use endpoints reachable from that instance. A mixed broker needs its referenced instance models. If this is the only model package, select a default model or broker. Clearing the default allows another package to supply it.
 
 On first launch the app uses the following default folder.
 
@@ -71,7 +81,7 @@ On first launch the app uses the following default folder.
 3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**, then disconnect and reconnect the LODEON tab.
 4. Select the same instance model in LODEON. **Model information** shows the effective values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
 
-The Customizer saves these overrides in `instanceModelSettings` in your local `config.yml`, keyed by the saved instance URL and model ID. Projects retain the ordinary model ID. A changed list of available instance models requires a new connection.
+The Customizer saves these overrides under `instanceModelSettings` in `.data/customizer.yml`, keyed by the saved instance URL and model ID. Projects retain the ordinary model ID. A changed list of available instance models requires a new connection.
 
 ## Configure a broker
 
@@ -83,7 +93,7 @@ Choose **Save broker** to apply your assignments. If any task uses routing, ente
 
 ## Reconnect, disconnect or quit
 
-Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. After an Editor reload, a local configuration change or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
+Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. The local header shows **Connected** while there is an active grant for the saved instance. It returns to **Disconnected** after the last grant ends. The connected tab highlights **Customize Workbench** in the Settings menu. After an Editor reload, a local configuration change or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
 
 If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
 

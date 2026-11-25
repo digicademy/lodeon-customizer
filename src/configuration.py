@@ -2,14 +2,19 @@
 
 import hashlib
 import os
+import re
 import sys
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from uuid import UUID, uuid4
 
+import yaml
 from dotenv.parser import parse_stream
 from resolver.assembler import resolve_personal_model_configuration
+from resolver.configuration_schema import validate_instance_model_settings
+from resolver.contract_validation import load_package_manifest
+from resolver.contracts import PACKAGE_MANIFEST_NAME
 from resolver.errors import ConfigResolverError
 from resolver.product_validation import ResolvedPackageReader
 from resolver.schema_validation import personal_instance_origin
@@ -58,24 +63,77 @@ def _create_if_absent(path, content):
         Path(pending.name).unlink()
 
 
+PRIVATE_SETTINGS = Path(".data/customizer.yml")
+IGNORE_RULES = (".env", ".data/", ".runtime/", "__pycache__/", ".pytest_cache/", ".ruff_cache/", ".DS_Store")
+
+
+def ensure_gitignore(path):
+    original = path.read_bytes() if path.exists() else b""
+    rules = [rule.encode() for rule in IGNORE_RULES]
+    # Put required exclusions after existing negations, retaining all owner rules.
+    lines = original.splitlines()
+    last_negation = max((i for i, line in enumerate(lines) if line.startswith(b"!")), default=-1)
+    missing = [rule for rule in rules if rule not in lines[last_negation + 1:]]
+    if missing:
+        with path.open("ab") as stream:
+            if original and not original.endswith(b"\n"):
+                stream.write(b"\n")
+            stream.write(b"\n".join(missing) + b"\n")
+
+
+def read_manifest(path):
+    try:
+        return load_package_manifest(path)
+    except ConfigResolverError:
+        raise ConfigError("invalid_manifest") from None
+
+
+def read_private_settings(path):
+    try:
+        doc = yaml.safe_load(path.read_bytes())
+        if not isinstance(doc, dict) or doc.keys() - {"serviceId", "instance", "instanceModelSettings"}:
+            raise ConfigError("invalid_private_settings")
+        UUID(doc["serviceId"])
+        if "instance" in doc:
+            instance_origin(doc["instance"])
+        for address, overrides in doc.get("instanceModelSettings", {}).items():
+            instance_origin(address)
+            validate_instance_model_settings(overrides)
+        return doc
+    except (KeyError, ValueError, TypeError, AttributeError, ConfigResolverError, yaml.YAMLError):
+        raise ConfigError("invalid_private_settings") from None
+
+
 def initialize(data: Path) -> UUID:
     data.mkdir(mode=0o700, parents=True, exist_ok=True)
-    (data / "models").mkdir(mode=0o700, exist_ok=True)
-    _, package = resource_paths()
-    _create_if_absent(data / "config.yml", (package / "config.yml").read_bytes())
-    identity = data / ".service-id"
-    _create_if_absent(identity, (str(uuid4()) + "\n").encode())
+    _, template = resource_paths()
+    manifest = data / PACKAGE_MANIFEST_NAME
+    config = data / "config.yml"
+    private = data / PRIVATE_SETTINGS
+    if manifest.exists():
+        read_manifest(manifest)
+    if config.exists():
+        # Check an existing folder before adding any package or private files.
+        load_configuration(config, package=data if manifest.exists() else template)
+    if private.exists():
+        read_private_settings(private)
+    slug = re.sub(r"[^a-z0-9_-]+", "-", data.name.lower()).strip("-") or "package"
+    ensure_gitignore(data / ".gitignore")
+    _create_if_absent(manifest, yaml.safe_dump({"schemaVersion": 1, "id": f"local/{slug}", "version": "0.1.0"}, sort_keys=False).encode())
+    _create_if_absent(config, (template / "config.yml").read_bytes())
+    private.parent.mkdir(mode=0o700, exist_ok=True)
+    _create_if_absent(private, f"serviceId: {uuid4()}\n".encode())
+    return UUID(read_private_settings(private)["serviceId"])
+
+
+def load_configuration(config: Path, *, package=None) -> dict:
+    core_config, _ = resource_paths()
     try:
-        return UUID(identity.read_text(encoding="utf-8").strip())
-    except ValueError:
-        raise ConfigError("invalid_service_identity") from None
-
-
-def load_configuration(config: Path) -> dict:
-    core_config, package = resource_paths()
-    return resolve_personal_model_configuration(
-        core_config=core_config, package_root=package, personal_config=config,
-    )
+        return resolve_personal_model_configuration(
+            core_config=core_config, package_root=package or config.parent, personal_config=config,
+        )
+    except ConfigResolverError:
+        raise ConfigError("invalid_config") from None
 
 
 def load_routing_prompts(data: Path, registry_file: str, brokers: dict) -> dict[str, str]:

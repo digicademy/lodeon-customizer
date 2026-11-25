@@ -6,6 +6,10 @@ body { @apply bg-lodeon-surface; }
   .customizer-topbar .ld-actions { @apply ml-0 min-w-max grow justify-between; }
   .customizer-topbar .ld-utility-actions { @apply ml-auto; }
   .customizer-topbar .instance-connection { @apply flex min-w-0 flex-[0_1_38rem] gap-2; }
+  .link-status { @apply shrink-0 text-xs text-lodeon-muted; }
+  .link-status[data-connected=true] { @apply font-semibold text-[var(--lodeon-success)]; }
+  .package-metadata { @apply grid justify-items-start gap-3 border-t border-lodeon-border; }
+  .package-metadata .field { @apply w-full; }
   .instance-label { @apply relative flex shrink-0 items-center gap-1; }
   .instance-url { @apply min-h-9 min-w-0 flex-1 border border-lodeon-border bg-lodeon-control px-2 text-sm font-semibold text-lodeon-text outline-hidden focus:ring-2 focus:ring-[var(--lodeon-focus)]; }
   .instance-label .field-help p { @apply absolute top-full left-0 z-10 mt-2 w-64 border border-lodeon-border bg-lodeon-panel p-3 shadow-lg; }
@@ -19,16 +23,12 @@ body { @apply bg-lodeon-surface; }
   .model-sections { @apply grid min-w-0 gap-3; }
   .panel { @apply min-w-0 border border-lodeon-border bg-lodeon-panel; }
   .panel-head { @apply flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-lodeon-border px-4 py-2; }
-  .panel-body, .files dl, .model { @apply p-4; }
-  .panel-foot { @apply border-t border-lodeon-border bg-lodeon-surface px-4 py-3; }
-  .files .panel-foot { @apply flex items-start gap-2; }
-  .hint, .panel-foot, .panel-body p, .model small, dd p, p.panel-body, .field small, .field-help p { @apply text-xs leading-relaxed text-lodeon-muted; }
+  .panel-body, .model { @apply p-4; }
+  .hint, .panel-body p, .model small, p.panel-body, .field small, .field-help p { @apply text-xs leading-relaxed text-lodeon-muted; }
   .actions, .input-row, .profile-editor footer { @apply flex flex-wrap items-center gap-2; }
   .input-row > .field { @apply min-w-0 flex-1; }
-  .files .input-row, dd code, .hint { @apply mt-2; }
-  .files dt, .model-title { @apply text-sm font-semibold; }
-  .files dd + dt { @apply mt-4; }
-  dd code { @apply block bg-lodeon-surface p-2 text-xs wrap-anywhere select-all; }
+  .files .input-row, .hint { @apply mt-2; }
+  .model-title { @apply text-sm font-semibold; }
   .model-entry { @apply flex flex-wrap items-center justify-between gap-2 py-3; }
   .model-title { @apply wrap-anywhere; }
   .model + .model { @apply border-t border-lodeon-border; }
@@ -95,6 +95,8 @@ body { @apply bg-lodeon-surface; }
     [id$="-heading"] { @apply scroll-mt-2; }
   }
   @media (width < 30rem) {
+    .customizer-topbar .instance-connection { @apply flex-wrap; }
+    .instance-connection .link-status { @apply w-full; }
     .customizer-topbar .brand-name { @apply hidden; }
     .customizer-topbar .ld-brand-wordmark { @apply h-6; }
   }

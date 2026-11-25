@@ -12,7 +12,8 @@ from urllib.parse import parse_qs, quote, urlsplit
 
 import yaml
 
-from .configuration import ConfigError, config_revision, read_model_environment, resource_paths, save_instance
+from .configuration import (ConfigError, PRIVATE_SETTINGS, config_revision, read_manifest,
+                            read_model_environment, resource_paths, save_instance, update_settings)
 from . import broker_form
 from .instance_form import render_instance, save_sampling
 from .folders import open_folder, pick_folder
@@ -55,8 +56,11 @@ def icon(paths):
             f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{paths}"/></svg>')
 
 
-def instance_form(settings, revision):
-    address = settings.get("instance") if isinstance(settings, dict) else ""
+def instance_form(server):
+    private = server.data / PRIVATE_SETTINGS
+    revision = config_revision(private, private.read_bytes())
+    address = server.models.instance
+    connected = server.grants.connected()
     help_text = field_help("instance", "Instance connection",
                            "Enter the URL from your LODEON tab, including its deployment path. Save it here, then choose Settings → Customize Workbench in that tab.")
     value = escape(address, quote=True) if isinstance(address, str) else ""
@@ -64,14 +68,17 @@ def instance_form(settings, revision):
             f'<div class="instance-label"><label for="field-instance">Instance connection</label>{help_text}</div>'
             f'<input class="instance-url" id="field-instance" name="instance" type="url" aria-describedby="help-instance" '
             f'value="{value}" placeholder="https://example.org/lodeon/" required>'
+            f'<span class="link-status" role="status" data-connection-status data-connected="{str(connected).lower()}" '
+            f'data-instance="{value}">{"Connected" if connected else "Disconnected"}</span>'
             f'<input type="hidden" name="revision" value="{revision}"></form>')
 
 
-def layout(content, *, server=None, connection=""):
+def layout(content, *, server=None):
+    connection = ""
     action = ""
     if server is not None:
-        if server.folder_warning:
-            connection = ""
+        if not server.folder_warning and (server.data / PRIVATE_SETTINGS).is_file():
+            connection = instance_form(server)
         save = ""
         if connection:
             disk = icon("M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M7 3v6h9V3 M7 21v-8h10v8")
@@ -129,6 +136,8 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
             raise ConfigError("invalid_config")
         profile = profiles.get(key, {})
         values = submitted if submitted is not None else values_for(key, profile, assistant.get("defaultModel"))
+        if submitted is None and not key and not profiles and not assistant.get("modelBrokers"):
+            values["default"] = "on"
     except (AttributeError, TypeError, ValueError, yaml.YAMLError):
         return page(handler, "Check the model profile settings in the local config.yml file.", 400)
     if key and key not in profiles:
@@ -136,7 +145,7 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
     key_form = ""
     variable = profile.get("apiKeyEnv")
     if variable:
-        path = config.parent / "models" / ".env"
+        path = config.parent / ".env"
         key_version = key_revision(path)
         try:
             configured = bool(read_model_environment(path).get(variable))
@@ -144,11 +153,11 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
             if not configured and status == 200 and message.startswith("Model saved."):
                 message = "Model saved. Enter your provider API key, then reconnect your LODEON tab."
         except ConfigError:
-            key_hint = "Check the syntax of your local models/.env file before saving."
+            key_hint = "Check the syntax of your local .env file before saving."
         references = sum(other.get("apiKeyEnv") == variable for other in profiles.values())
         if references > 1:
             key_hint += f" This variable is shared by {references} profiles."
-        secret = form_field("secret", "Provider API key", "Stored in the local models/.env file. A saved key can be replaced here.", kind="password", attrs='autocomplete="new-password" required')
+        secret = form_field("secret", "Provider API key", "Stored in the local .env file. A saved key can be replaced here.", kind="password", attrs='autocomplete="new-password" required')
         key_form = f"""<form class="panel profile-editor key-entry" method="post" action="/model-key">
 <input type="hidden" name="revision" value="{revision}">
 <input type="hidden" name="keyRevision" value="{key_version}">
@@ -160,18 +169,18 @@ def model_page(handler, key="", *, message="", status=200, submitted=None):
         revision=revision, original=escape(key, quote=True), key_form=key_form,
         advanced_open="open" if submitted is not None else "", **render_fields(values),
     )
-    return send_editor(handler, content, instance_form(settings, revision), status)
+    return send_editor(handler, content, status)
 
 
-def editor_page(handler, title, form, connection, message="", status=200, *, routing=False):
+def editor_page(handler, title, form, message="", status=200, *, routing=False):
     content = (f'<a class="back" href="/#models-heading">← Models</a><header class="page-title"><h1>{escape(title)}</h1></header>'
                + notice_html(message, status) + form)
-    return send_editor(handler, content, connection, status, routing=routing)
+    return send_editor(handler, content, status, routing=routing)
 
 
-def send_editor(handler, content, connection, status, *, routing=False):
+def send_editor(handler, content, status, *, routing=False):
     script, digest = editor_script(routing)
-    html = layout(content + f'<script>{script}</script>', server=handler.server, connection=connection)
+    html = layout(content + f'<script>{script}</script>', server=handler.server)
     return send_html(handler, html, status, script_hash=digest)
 
 
@@ -193,6 +202,8 @@ def broker_page(handler, key="", *, message="", status=200, submitted=None):
     if key and not broker:
         return page(handler, "This broker no longer exists.", 404)
     fields = submitted or broker_form.values_for(key, broker, assistant.get("defaultModel"))
+    if submitted is None and not key and not assistant.get("modelProfiles") and not assistant.get("modelBrokers"):
+        fields["default"] = "on"
     choices = {k: m["label"] for k, m in server.grants.visible_models().items()}
     choices.update({k: m["label"] for k, m in assistant.get("modelProfiles", {}).items()})
     form = broker_form.render_broker(fields, choices, revision)
@@ -212,7 +223,7 @@ def broker_page(handler, key="", *, message="", status=200, submitted=None):
         except (ValueError, OSError) as error:
             message = str(error) if isinstance(error, FormError) else "Check the local routing prompt files."
             status = 400
-    return editor_page(handler, "Edit broker" if key else "Add broker", form, instance_form(settings, revision), message, status, routing=True)
+    return editor_page(handler, "Edit broker" if key else "Add broker", form, message, status, routing=True)
 
 
 def instance_page(handler, key, message="", status=200):
@@ -220,11 +231,10 @@ def instance_page(handler, key, message="", status=200):
     model = server.grants.visible_models().get(key)
     if not model:
         return page(handler, "Reconnect your LODEON tab to load its available models.", 409)
-    config = server.data / "config.yml"
-    raw = config.read_bytes()
-    revision = config_revision(config, raw)
+    private = server.data / PRIVATE_SETTINGS
+    revision = config_revision(private, private.read_bytes())
     form = render_instance(model, server.models.instance_settings.get(key, {}), revision)
-    return editor_page(handler, model["label"], form, instance_form(yaml.safe_load(raw), revision), message, status)
+    return editor_page(handler, model["label"], form, message, status)
 
 
 def removal_page(handler, group, key):
@@ -250,7 +260,7 @@ def removal_page(handler, group, key):
 <p>Remove <strong>{escape(label)}</strong> ({escape(key)}) from your personal configuration?{default} {files}</p>
 <input type="hidden" name="revision" value="{revision}"><input type="hidden" name="profile" value="{escape(key, quote=True)}">
 <footer><button class="ld-button danger">Remove {noun}</button><a class="ld-button" href="/">Cancel</a></footer></form>'''
-    return editor_page(handler, f"Remove {noun}", content, instance_form(settings, revision))
+    return editor_page(handler, f"Remove {noun}", content)
 
 
 def model_get(handler):
@@ -286,7 +296,7 @@ def send_html(handler, html, status=200, *, script_hash=None):
     script_policy = f"; script-src 'sha256-{theme_hash}'"
     if script_hash:
         script_policy += f" 'sha256-{script_hash}'"
-    handler.send_header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" + script_policy)
+    handler.send_header("Content-Security-Policy", "default-src 'none'; img-src data:; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" + script_policy)
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
@@ -294,17 +304,14 @@ def send_html(handler, html, status=200, *, script_hash=None):
 
 def page(handler, message="", status=200):
     config = handler.server.data / "config.yml"
-    raw = config.read_bytes()
     try:
-        contents = yaml.safe_load(raw)
+        contents = yaml.safe_load(config.read_bytes())
         if not isinstance(contents, dict):
             raise yaml.YAMLError()
         models_html = model_list(contents)
-    except (ConfigError, yaml.YAMLError):
-        contents = {}
+    except (OSError, ConfigError, yaml.YAMLError):
         models_html = ""
         message, status = "Check the structure of the local config.yml file.", 400
-    revision = config_revision(config, raw)
     notice = notice_html(message or handler.server.folder_warning, 409 if handler.server.folder_warning else status)
     installed = handler.server.grants.visible_models()
     remote = "".join(
@@ -314,23 +321,32 @@ def page(handler, message="", status=200):
         for key, item in sorted(installed.items(), key=lambda pair: pair[1]["label"].casefold())
     )
     folder_form = template("folder.html").substitute(
-        folder_field=form_field("folder", "Settings folder", "Choose the folder containing config.yml to reopen saved settings. An empty folder starts a new configuration.",
+        folder_field=form_field("folder", "Package folder", "Choose a package folder or enter its absolute path. An empty folder starts a new package.",
                                 value=str(config.parent) if not handler.server.folder_warning else ""),
-        revision=revision)
+        current=escape(str(config.parent), quote=True),
+        folder_action="Use folder" if handler.server.folder_warning else "Reload configuration")
     if handler.server.folder_warning:
         content = ('<header class="page-title"><h1>LODEON Customizer</h1></header>' + notice +
-                   '<section class="panel"><div class="panel-head"><h2>Settings folder</h2></div>' + folder_form + '</section>')
+                   '<section class="panel"><div class="panel-head"><h2>Local package</h2></div>' + folder_form + '</section>')
         return send_html(handler, layout(content, server=handler.server), status)
+    manifest = config.parent / "lodeon.package.yml"
+    try:
+        package = read_manifest(manifest)
+        metadata = (form_field("packageId", "Package ID", "Unique ID in the instance package registry.", value=package.package_id, attrs="required")
+                    + form_field("version", "Version", "Version recorded in the package manifest.", value=package.version, attrs="required"))
+        manifest_form = (f'<form class="panel-body package-metadata" method="post" action="/package">{metadata}'
+                         f'<input type="hidden" name="revision" value="{config_revision(manifest, manifest.read_bytes())}">'
+                         '<button class="ld-button">Save package</button></form>')
+    except (OSError, ConfigError):
+        manifest_form = notice_html("Check lodeon.package.yml and reload the configuration.", 400)
     content = template("settings.html").substitute(
         models_icon=icon("m12 3 9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5"),
         folder_icon=icon("M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"),
-        lock_icon=icon("M8 10V7a4 4 0 0 1 8 0v3 M6 10h12v10H6z"),
         notice=notice,
         instance_models=remote or '<p class="panel-body">Connect your LODEON tab, then refresh this list to see its available models.</p>',
-        models=models_html, config_path=escape(str(config)), folder_form=folder_form,
-        keys_path=escape(str(config.parent / "models" / ".env")),
+        models=models_html, folder_form=folder_form, manifest_form=manifest_form,
     )
-    send_html(handler, layout(content, server=handler.server, connection=instance_form(contents, revision)), status)
+    send_html(handler, layout(content, server=handler.server), status)
 
 
 def local_action(handler):
@@ -355,7 +371,7 @@ def local_action(handler):
         raise ValueError("invalid_request")
     expected = {"/models/remove": {"profile", "revision"}, "/brokers/remove": {"profile", "revision"},
                 "/broker": broker_form.FIELDS, "/broker-prompt": {"profile", "revision", "promptRevision", "content"},
-                "/instance-model": {"profile", "revision", "temperature", "topP"}, "/folder": {"folder", "method", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
+                "/instance-model": {"profile", "revision", "temperature", "topP"}, "/folder": {"folder", "method", "current"}, "/package": {"packageId", "version", "revision"}, "/instance": {"instance", "revision"}, "/model": FIELDS,
                 "/model-key": {"profile", "revision", "keyRevision", "secret"}}[handler.path]
     parsed = parse_qs(handler.rfile.read(size).decode("utf-8"), strict_parsing=True,
                       keep_blank_values=True, max_num_fields=None if handler.path == "/broker" else len(expected))
@@ -380,6 +396,8 @@ def local_action(handler):
     if not required <= parsed.keys() <= expected or any(len(v) != 1 for v in parsed.values()):
         raise ValueError("invalid_request")
     fields = {name: values[0] for name, values in parsed.items()}
+    if handler.path == "/folder" and fields["method"] not in {"browse", "load"}:
+        raise ValueError("invalid_request")
     if handler.path == "/folder" and fields["method"] == "browse":
         try:
             fields["folder"] = pick_folder()
@@ -389,17 +407,27 @@ def local_action(handler):
             return page(handler)
     with server.settings_lock:
         config = server.data / "config.yml"
+        private = server.data / PRIVATE_SETTINGS
+
+        def check_private(candidate):
+            return LocalModels.load(config, server.identity, private_path=candidate)
+
         def check(path):
             return LocalModels.load(path, server.identity)
 
         try:
             if handler.path == "/folder":
-                if config_revision(config, config.read_bytes()) != fields["revision"]:
+                if str(server.data) != fields["current"]:
                     raise ConfigError("config_changed")
-                open_folder(server, fields["folder"])
-                return page(handler, "Settings folder opened. Reconnect your LODEON tab.")
+                reloaded = open_folder(server, fields["folder"])
+                message = "Configuration reloaded from disk." if reloaded else "Package folder selected."
+                return page(handler, message + " Reconnect your LODEON tab.")
+            if handler.path == "/package":
+                update_settings(server.data / "lodeon.package.yml", fields["revision"], read_manifest,
+                                lambda doc: doc.update(id=fields["packageId"].strip(), version=fields["version"].strip()))
+                return page(handler, "Package details saved.")
             if handler.path == "/instance":
-                server.set_models(save_instance(config, fields["instance"].strip(), fields["revision"], check))
+                server.set_models(save_instance(private, fields["instance"].strip(), fields["revision"], check_private))
                 return page(handler, "Instance saved.")
             if handler.path in ("/models/remove", "/brokers/remove"):
                 group = handler.path.split("/")[1]
@@ -410,7 +438,7 @@ def local_action(handler):
                 key = fields["profile"]
                 if key not in server.grants.visible_models():
                     return page(handler, "Reconnect your LODEON tab to load its available models.", 409)
-                saved = save_sampling(config, fields, server.models, check)
+                saved = save_sampling(private, fields, server.models, check_private)
                 server.models.instance_settings = saved.instance_settings
                 location = f"/instance-models/edit/{quote(key, safe='')}?saved"
             elif handler.path == "/broker":

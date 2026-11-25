@@ -9,12 +9,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlencode
-from uuid import uuid4
 
 import yaml
 from resolver.resource_schemas import BROKER_ROUTING_VARIABLES
 
-from lodeon_customizer.configuration import config_revision
+from lodeon_customizer.configuration import PRIVATE_SETTINGS, config_revision, initialize
 from lodeon_customizer import broker_form, cli
 from lodeon_customizer.http_service import ModelService
 from lodeon_customizer.profiles import LocalModels
@@ -27,7 +26,8 @@ class TransportTest(unittest.TestCase):
         data = Path(directory.name)
         config = data / "config.yml"
         config.write_text("assistant: {modelProfiles: {}}\n", encoding="utf-8")
-        identity = uuid4()
+        identity = initialize(data)
+        private = data / PRIVATE_SETTINGS
         server = ModelService(("127.0.0.1", 0), LocalModels.load(config, identity),
                               data=data, identity=identity)
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -53,7 +53,7 @@ class TransportTest(unittest.TestCase):
 
         def save(address):
             return request("POST", "/instance", origin=f"http://127.0.0.1:{server.server_port}",
-                           form={"instance": address, "revision": config_revision(config, config.read_bytes())})
+                           form={"instance": address, "revision": config_revision(private, private.read_bytes())})
 
         origin = "http://localhost:7014"
         address = origin + "/lodeon/"
@@ -63,7 +63,8 @@ class TransportTest(unittest.TestCase):
         self.assertIn('href="/models/new"', html)
         for route in ("/model", "/model-key", "/models/remove", "/brokers/remove"):
             self.assertEqual(request("POST", route, origin=origin, form={"secret": "fixture"})[0], 403)
-        self.assertEqual(yaml.safe_load(config.read_bytes())["instance"], address)
+        self.assertEqual(yaml.safe_load(private.read_bytes())["instance"], address)
+        self.assertNotIn("instance", yaml.safe_load(config.read_bytes()))
         status, html = save("http://stories.example.org/lodeon/")
         self.assertEqual(status, 400)
         self.assertIn("Enter an HTTPS instance URL", html)
@@ -72,11 +73,14 @@ class TransportTest(unittest.TestCase):
         status, result = request("POST", "/v1/connect", origin=origin, payload={"models": False})
         self.assertEqual(status, 200)
         basic = json.loads(result)["grant"]
+        self.assertTrue(json.loads(request("GET", "/connection-status")[1])["connected"])
+        self.assertNotEqual(request("GET", "/connection-status", origin=origin)[0], 200)
         for method, route in (("GET", "catalog"), ("GET", "targets"), ("POST", "instance-models"),
                               ("POST", "broker"), ("POST", "invoke"), ("POST", "cancel")):
             with self.subTest(route=route):
                 self.assertEqual(request(method, "/v1/" + route, origin=origin, token=basic)[0], 403)
         self.assertEqual(request("POST", "/v1/disconnect", origin=origin, token=basic)[0], 204)
+        self.assertFalse(json.loads(request("GET", "/connection-status")[1])["connected"])
         for invalid in (None, {}, {"models": 1}, {"models": True, "git": True}):
             self.assertEqual(request("POST", "/v1/connect", origin=origin, payload=invalid)[0], 400)
         for other in ("http://localhost:7015", "http://127.0.0.1:7014", "https://localhost:7014"):
@@ -91,7 +95,7 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(share(token), (200, "{}"))
         self.assertIn("Hosted model", request("GET", "/")[1])
         revision = lambda: config_revision(config, config.read_bytes())
-        form = {"profile": "worker", "temperature": "0", "topP": "", "revision": revision()}
+        form = {"profile": "worker", "temperature": "0", "topP": "", "revision": config_revision(private, private.read_bytes())}
         self.assertEqual(request("POST", "/instance-model", origin=origin, form=form)[0], 403)
         self.assertEqual(request("POST", "/instance-model", origin=local, form=form)[0], 303)
         self.assertEqual(json.loads(share(token)[1]), {"worker": {"temperature": 0}})
@@ -119,7 +123,7 @@ class TransportTest(unittest.TestCase):
         other.mkdir()
         server.folder_preference = data / "preference"
         def switch(folder):
-            return request("POST", "/folder", origin=local, form={"method": "open", "folder": str(folder), "revision": config_revision(server.data / "config.yml", (server.data / "config.yml").read_bytes())})
+            return request("POST", "/folder", origin=local, form={"method": "load", "folder": str(folder), "current": str(server.data)})
         self.assertEqual(switch(other)[0], 200)
         self.assertFalse(server.models.brokers)
         self.assertEqual(server.folder_preference.read_text(), str(other.resolve()))
@@ -139,9 +143,22 @@ class TransportTest(unittest.TestCase):
             "promptCaching": {"enabled": False, "retention": "default"}}
         assistant["defaultModel"] = "worker"
         config.write_text(yaml.safe_dump(doc))
-        env = data / "models" / ".env"
+        env = data / ".env"
         env.write_text("MODEL_KEY=fixture\n")
         server.set_models(LocalModels.load(config, identity))
+        manifest = data / "lodeon.package.yml"
+        fields = {"packageId": "test/package", "version": "1.0.0", "revision": config_revision(manifest, manifest.read_bytes())}
+        self.assertEqual(request("POST", "/package", origin=local, form=fields)[0], 200)
+        self.assertEqual(yaml.safe_load(manifest.read_bytes()), {"schemaVersion": 1, "id": "test/package", "version": "1.0.0"})
+        self.assertEqual(request("POST", "/package", origin=local, form=fields)[0], 409)
+        model_snapshot = server.models
+        config.rename(data / "config.backup")
+        self.assertEqual(switch(data)[0], 400)
+        self.assertIs(server.models, model_snapshot)
+        self.assertFalse(config.exists())
+        (data / "config.backup").rename(config)
+        self.assertIn("Configuration reloaded from disk.", switch(data)[1])
+        self.assertNotIn("instanceModelSettings", yaml.safe_load(config.read_bytes()))
         before = revision()
         self.assertIn('/brokers/edit/catalog-broker', request("GET", "/models/remove/worker")[1])
         def remove(group, key, stamp):
@@ -162,7 +179,9 @@ class TransportTest(unittest.TestCase):
             base = Path(temp)
             selected = base / "My settings"
             selected.mkdir()
-            (selected / "config.yml").write_text("instance: https://example.org/lodeon/\n")
+            initialize(selected)
+            with (selected / PRIVATE_SETTINGS).open("a") as stream:
+                stream.write("instance: https://example.org/lodeon/\n")
             preference = base / "settings-folder"
             preference.write_text(str(selected))
             observed = []
@@ -174,7 +193,7 @@ class TransportTest(unittest.TestCase):
             with (patch.object(cli, "data_directory", return_value=base / "data"),
                   patch.object(cli, "ModelService", side_effect=start), patch("sys.argv", ["customizer", "--no-browser"])):
                 self.assertEqual(cli.main(), 0)
-                self.assertEqual(observed[-1], (selected, "https://example.org/lodeon/", ""))
+                self.assertEqual(observed[-1], (selected.resolve(), "https://example.org/lodeon/", ""))
                 selected.rename(base / "disconnected")
                 self.assertEqual(cli.main(), 0)
                 self.assertTrue(observed[-1][2])
@@ -219,7 +238,10 @@ class TransportTest(unittest.TestCase):
         routed = {**broker, "tasks": {**tasks, "query": {
             "strategy": "routed", "candidates": ["hosted"], "fallbacks": ["local"],
         }}}
-        config.write_text(yaml.safe_dump({"instance": origin, "assistant": {
+        identity = initialize(data)
+        with (data / PRIVATE_SETTINGS).open("a") as stream:
+            stream.write(f"instance: {origin}\n")
+        config.write_text(yaml.safe_dump({"assistant": {
             "enabled": True,
             "modelProfiles": {"local": {
                 "provider": "ollama", "label": "Local", "model": "private-native",
@@ -229,7 +251,6 @@ class TransportTest(unittest.TestCase):
             "modelBrokers": {"mixed": routed, "other": {**broker, "label": "Other"}},
             "limits": limits, "defaultModel": "mixed",
         }}), encoding="utf-8")
-        identity = uuid4()
         models = LocalModels.load(config, identity)
         self.assertNotIn("routingPrompt", models.selected_broker(models.target("other"), {"local", "other"}))
         prompt_file.unlink()

@@ -120,7 +120,7 @@ printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
                 last_error = error
                 time.sleep(0.15)
                 continue
-            if str(config) not in html.unescape(page):
+            if f'name="current" value="{data.resolve()}"' not in html.unescape(page):
                 raise RuntimeError(f"{phase}: unexpected data folder or another instance on port 8765")
             return
         raise RuntimeError(f"{phase}: desktop exited with status {proc.returncode} before it was ready")
@@ -144,7 +144,8 @@ printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
             subprocess.run(desktop_args, cwd=home, env=env, timeout=15, check=True)
             if system == "linux" and record.read_text().splitlines() != [LOCAL + "/", env["LD_LIBRARY_PATH"]]:
                 raise RuntimeError("Browser did not receive the original host library path on relaunch")
-            identity = (data / ".service-id").read_bytes()
+            if not (data / "lodeon.package.yml").is_file() or ".env" not in (data / ".gitignore").read_text().splitlines() or (data / "models").exists():
+                raise RuntimeError("First launch did not create the expected local package")
             request("POST", "/v1/connect", origin=ORIGIN, status=403)
             form = {"instance": ORIGIN + "/lodeon/", "revision": re.search(r'name="revision" value="([a-f0-9]+)"', request("GET", "/"))[1]}
             request("POST", "/instance", form, origin=ORIGIN, form=True, status=403)
@@ -155,8 +156,7 @@ printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
             if catalog["models"]:
                 raise RuntimeError("Expected an empty first-run catalog")
             quit_app()
-            config.write_text(f"""instance: {ORIGIN}/lodeon/
-assistant:
+            config.write_text(f"""assistant:
   defaultModel: sample
   modelProfiles:
     sample:
@@ -167,11 +167,12 @@ assistant:
       apiKeyEnv: TEST_MODEL_KEY
       promptCaching: {{enabled: false, retention: default}}
 """, encoding="utf-8")
-            keyfile = data / "models" / ".env"
+            keyfile = data / ".env"
             keyfile.write_text("TEST_MODEL_KEY=" + KEY + "\n", encoding="utf-8")
-            original = config.read_bytes(), keyfile.read_bytes(), identity
+            private = data / ".data/customizer.yml"
+            original = config.read_bytes(), keyfile.read_bytes(), private.read_bytes()
             launch("Restart")
-            if (config.read_bytes(), keyfile.read_bytes(), (data / ".service-id").read_bytes()) != original:
+            if (config.read_bytes(), keyfile.read_bytes(), private.read_bytes()) != original:
                 raise RuntimeError("Desktop restart changed personal data")
             request("GET", "/v1/targets", origin=ORIGIN, grant=pair["grant"], status=403)
             pair = request("POST", "/v1/connect", {"models": True}, origin=ORIGIN)

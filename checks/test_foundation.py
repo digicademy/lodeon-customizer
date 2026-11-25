@@ -10,7 +10,7 @@ from uuid import UUID
 
 import yaml
 from lodeon_model_runtime.wire import effective_limits, validate_payload
-from lodeon_customizer.configuration import config_revision, data_directory
+from lodeon_customizer.configuration import config_revision, data_directory, initialize
 from lodeon_customizer.model_form import FIELDS, FormError, key_revision, save_key, save_model, values_for
 from lodeon_customizer.execution import execute_model
 from lodeon_customizer.profiles import ConfigError, LocalModels
@@ -33,6 +33,7 @@ class FoundationTest(unittest.TestCase):
         scratch = tempfile.TemporaryDirectory()
         self.addCleanup(scratch.cleanup)
         self.root = Path(scratch.name)
+        initialize(self.root)
         self.ollama = self.config("local-gemma", {
             "label": "Local Gemma", "provider": "ollama", "model": "gemma4:12b",
             "baseURLEnv": "OLLAMA_BASE_URL", "generation": {"temperature": 0},
@@ -51,6 +52,24 @@ class FoundationTest(unittest.TestCase):
             "defaultModel": model_id, "modelProfiles": {model_id: profile},
         }}))
         return path
+
+    def test_new_package_preserves_existing_gitignore_and_manifest(self):
+        folder = self.root / "Other Package"
+        folder.mkdir()
+        ignore = folder / ".gitignore"
+        ignore.write_text("owner-file\n!.env")
+        identity = initialize(folder)
+        manifest = folder / "lodeon.package.yml"
+        self.assertEqual(yaml.safe_load(manifest.read_bytes()), {
+            "schemaVersion": 1, "id": "local/other-package", "version": "0.1.0",
+        })
+        self.assertFalse((folder / "models").exists())
+        protected = ignore.read_text()
+        self.assertIn("owner-file\n!.env\n.env\n", protected)
+        manifest.write_text("schemaVersion: 1\nid: test/owner\nversion: 2.0.0\n")
+        self.assertEqual(initialize(folder), identity)
+        self.assertEqual(ignore.read_text(), protected)
+        self.assertEqual(yaml.safe_load(manifest.read_bytes())["id"], "test/owner")
 
     def test_private_configuration_and_strict_projection(self):
         ollama = LocalModels.load(
@@ -79,8 +98,7 @@ class FoundationTest(unittest.TestCase):
         with self.assertRaises(ConfigError):
             LocalModels.load(path, SERVICE)
         models = LocalModels.load(self.keyed, SERVICE)
-        env_path = self.root / "models" / ".env"
-        env_path.parent.mkdir()
+        env_path = self.root / ".env"
         for key in [SENTINEL, "rotated-test-value"]:
             env_path.write_text("PERSONAL_ANTHROPIC_API_KEY=" + key + "\n")
             request = models.prepare("personal-sonnet", {}, CALL["bounds"], CALL["messages"], [])
@@ -127,8 +145,7 @@ class FoundationTest(unittest.TestCase):
         with self.assertRaises(FormError):
             save_model(path, form, lambda candidate: LocalModels.load(candidate, SERVICE))
         self.assertEqual(path.read_bytes(), content)
-        env = self.root / "models/.env"
-        env.parent.mkdir()
+        env = self.root / ".env"
         env.write_text("# Retain unrelated settings\nOTHER=ok\n")
         submission = {"profile": key, "revision": form["revision"], "keyRevision": key_revision(env), "secret": SENTINEL}
         save_key(path, submission)

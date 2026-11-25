@@ -28,17 +28,18 @@ def main() -> int:
             preference = default.parent / "settings-folder"
             data = args.data or default
             warning = ""
-            if args.data is None and preference.is_file():
-                try:
+            try:
+                if args.data is None and preference.is_file():
                     data = Path(os.fsdecode(preference.read_bytes()))
                     if not data.is_absolute() or not (data / "config.yml").is_file():
                         raise ConfigError("folder_unavailable")
-                    identity, models = load_folder(data)
-                except (OSError, ValueError):
-                    warning = "The selected settings folder is unavailable. Open a settings folder to continue."
-                    data = Path(stack.enter_context(TemporaryDirectory()))
-                    identity, models = load_folder(data)
-            else:
+                data = data.resolve()
+                identity, models = load_folder(data)
+            except (OSError, ValueError):
+                if args.data is not None:
+                    raise
+                warning = "The saved folder is unavailable or its configuration is invalid. Choose a Core package or an empty folder to continue."
+                data = Path(stack.enter_context(TemporaryDirectory()))
                 identity, models = load_folder(data)
             server = stack.enter_context(ModelService(("127.0.0.1", 8765), models, data=data, identity=identity))
             server.folder_preference = None if args.data else preference

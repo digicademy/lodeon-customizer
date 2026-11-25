@@ -20,7 +20,9 @@ LODEON instance URL on the app's local settings page. HTTPS is required except
 for HTTP on the exact hosts `localhost`, `127.0.0.1` and `[::1]`. A deployment path is
 retained for display. Browser permission is granted to its serialized origin
 (scheme, hostname and port), which is the boundary a browser can enforce.
-The app starts with no authorized origin. The folder, instance, model, key and
+The desktop reads the service identity, saved URL and per-instance sampling settings from the package’s private `.data/customizer.yml`. Core assembly excludes that directory and the root `.env`. Its local-only `GET /connection-status` reports the saved URL and whether a grant is active. It returns no tokens or model data.
+
+The app starts with no authorized origin. The package, folder, instance, model, key and
 broker management forms belong to the desktop origin. `POST /models/remove`
 and `POST /brokers/remove` delete one local definition at the form's recorded
 configuration revision. A broker reference blocks removal of its member.

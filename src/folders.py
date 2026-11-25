@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from uuid import UUID
 
-from .configuration import ConfigError, initialize
+from .configuration import ConfigError, PRIVATE_SETTINGS, initialize, read_private_settings
 from .profiles import LocalModels
 
 
@@ -31,18 +31,15 @@ def pick_folder():
     return result.stdout.rstrip("\r\n") if result.returncode == 0 else ""
 
 
-def load_folder(data):
+def load_folder(data, *, reload=False):
     data = data.resolve()
     if ".git" in {part.casefold() for part in data.parts}:
         raise ConfigError("folder_invalid")
-    for name in ("config.yml", ".service-id", "models", "models/.env"):
+    for name in ("config.yml", "lodeon.package.yml", ".gitignore", ".env", PRIVATE_SETTINGS.parent, PRIVATE_SETTINGS):
         if (data / name).is_symlink():
             raise ConfigError("folder_invalid")
     config = data / "config.yml"
-    if config.exists() and not ((data / ".service-id").is_file() and (data / "models").is_dir()):
-        # Validate the owner's existing YAML before creating a new identity or files.
-        LocalModels.load(config, UUID(int=0))
-    identity = initialize(data)
+    identity = UUID(read_private_settings(data / PRIVATE_SETTINGS)["serviceId"]) if reload else initialize(data)
     return identity, LocalModels.load(config, identity)
 
 
@@ -51,8 +48,9 @@ def open_folder(server, value):
     if not value or not data.is_absolute() or not data.is_dir():
         raise ConfigError("folder_invalid")
     data = data.resolve()
-    identity, models = load_folder(data)
-    if server.folder_preference:
+    same_folder = not server.folder_warning and data == server.data.resolve()
+    identity, models = load_folder(data, reload=same_folder)
+    if server.folder_preference and not same_folder:
         preference = server.folder_preference
         preference.parent.mkdir(parents=True, exist_ok=True)
         with NamedTemporaryFile(dir=preference.parent, delete=False) as pending:
@@ -65,3 +63,4 @@ def open_folder(server, value):
     server.data, server.identity = data, identity
     server.set_models(models)
     server.folder_warning = ""
+    return same_folder
