@@ -2,12 +2,15 @@
 body { @apply bg-lodeon-surface; }
 
 @layer components {
+  .customizer-help { @apply m-auto w-[calc(100%-2rem)] text-lodeon-text; }
+  .customizer-help:not([open]) { display: none; }
+  .customizer-help::backdrop { @apply bg-black/45; }
+  .customizer-help dl { @apply grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm; }
+  .customizer-help dt, .customizer-help dd { @apply m-0 wrap-anywhere; }
   .brand-name { @apply ml-4 border-l border-lodeon-border pl-5 text-sm font-semibold text-lodeon-text; }
   .customizer-topbar .ld-actions { @apply ml-0 min-w-max grow justify-between; }
   .customizer-topbar .ld-utility-actions { @apply ml-auto; }
   .customizer-topbar .instance-connection { @apply flex min-w-0 flex-[0_1_38rem] gap-2; }
-  .link-status { @apply shrink-0 text-xs text-lodeon-muted; }
-  .link-status[data-connected=true] { @apply font-semibold text-[var(--lodeon-success)]; }
   .package-metadata { @apply grid justify-items-start gap-3 border-t border-lodeon-border; }
   .package-metadata .field { @apply w-full; }
   .instance-label { @apply relative flex shrink-0 items-center gap-1; }
@@ -94,10 +97,15 @@ body { @apply bg-lodeon-surface; }
     .member-palette { @apply static; }
     [id$="-heading"] { @apply scroll-mt-2; }
   }
-  @media (width < 30rem) {
-    .customizer-topbar .instance-connection { @apply flex-wrap; }
-    .instance-connection .link-status { @apply w-full; }
+  @media (width < 32rem) {
     .customizer-topbar .brand-name { @apply hidden; }
     .customizer-topbar .ld-brand-wordmark { @apply h-6; }
+    .customizer-topbar { @apply grid-cols-[auto_minmax(0,1fr)]; }
+    .customizer-topbar .ld-actions, .customizer-topbar .instance-connection { @apply contents; }
+    .customizer-topbar .ld-utility-actions { @apply col-start-2 row-start-1 justify-self-end; }
+    .customizer-topbar .instance-label { @apply col-start-1 row-start-2; }
+    .customizer-topbar .instance-url { @apply col-start-2 row-start-2 w-full; }
+    .customizer-topbar [data-connection-status] { @apply col-start-1 row-start-3; }
+    .customizer-topbar .ld-actions > :first-child { @apply col-start-2 row-start-3 justify-self-end; }
   }
 }

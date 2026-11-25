@@ -1,6 +1,7 @@
 """Build, archive and exercise the native desktop app using one coordinated Core source."""
 
 import argparse
+import json
 import os
 import platform
 import plistlib
@@ -10,6 +11,7 @@ import sys
 import tarfile
 import tempfile
 import tomllib
+from datetime import datetime, timezone
 from pathlib import Path
 from venv import EnvBuilder
 
@@ -67,6 +69,35 @@ def publish_local_app(source, output):
     return target
 
 
+def checkout_revision(root):
+    if not (root / ".git").exists() or not shutil.which("git"):
+        return "Source snapshot"
+    git = ["git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", str(root)]
+    revision = subprocess.run([*git, "rev-parse", "--verify", "HEAD"], capture_output=True)
+    if revision.returncode:
+        return "Source snapshot"
+    changes = subprocess.run([*git, "status", "--porcelain"], capture_output=True)
+    commit = revision.stdout.decode("ascii").strip()
+    if changes.returncode:
+        return commit + " (working tree status unavailable)"
+    return commit + (" (working tree changes)" if changes.stdout else "")
+
+
+def build_information(core, channel, version):
+    built_at = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        customizer = os.environ["GITHUB_SHA"]
+        core_revision = (core / "CORE-REVISION").read_text(encoding="ascii").strip()
+        build_id = f'{os.environ["GITHUB_RUN_ID"]} (attempt {os.environ["GITHUB_RUN_ATTEMPT"]})'
+    else:
+        customizer = checkout_revision(ROOT)
+        core_revision = checkout_revision(core)
+        build_id = None
+    return {"App version": version, "Channel": channel, **({"Build": build_id} if build_id else {}),
+            "Platform": f"{SYSTEM}-{ARCH}", "Built at (UTC)": built_at,
+            "Customizer revision": customizer, "Core revision": core_revision}
+
+
 def build(core, work, output, channel):
     release = channel == "release"
     work.mkdir(parents=True, exist_ok=True)
@@ -85,6 +116,8 @@ def build(core, work, output, channel):
         shutil.copy2(core / "api/pyproject.toml", runtime)
         package = stage / "customizer"
         shutil.copytree(ROOT / "src", package / "src", ignore=shutil.ignore_patterns("__pycache__"))
+        info = build_information(core, channel, version)
+        (package / "src/build-info.json").write_text(json.dumps(info), encoding="utf-8")
         desktop_assets = build_ui(core, ROOT, work / "ui", python)
         for filename in ("desktop.css", "desktop-theme.js"):
             shutil.copy2(desktop_assets / filename, package / "src" / filename)
@@ -133,7 +166,6 @@ def build(core, work, output, channel):
                 run("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", bundle, archive)
             archive_mac()
             if release:
-                import json
                 result = subprocess.check_output([
                     "xcrun", "notarytool", "submit", str(archive), "--wait", "--keychain-profile",
                     os.environ["MACOS_NOTARY_PROFILE"], "--output-format", "json"])
@@ -155,7 +187,7 @@ def build(core, work, output, channel):
             with tarfile.open(archive, "w:gz") as out:
                 out.add(dist / NAME, arcname=NAME)
         extracted = stage / "Acceptance with spaces"
-        check_archive(archive, extracted, SYSTEM)
+        check_archive(archive, extracted, SYSTEM, info)
         output.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=output) as temporary:
             pending = Path(temporary) / archive.name

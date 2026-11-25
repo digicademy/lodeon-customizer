@@ -42,6 +42,12 @@ async function main() {
     const settings = await context.newPage();
     await settings.emulateMedia({ colorScheme: "dark" });
     await settings.goto(local);
+    await settings.getByRole("button", {name: "Help", exact: true}).click();
+    const help = settings.getByRole("dialog", {name: "LODEON Customizer Help"});
+    await help.getByRole("heading", {name: "Build information"}).waitFor();
+    await help.getByText("Customizer revision", {exact: true}).waitFor();
+    await settings.keyboard.press("Escape");
+    await help.waitFor({state: "hidden"});
     await settings.getByRole("button", { name: "Switch to day theme" }).click();
     await settings.reload();
     await settings.getByRole("button", { name: "Switch to night theme" }).waitFor();

@@ -1,5 +1,6 @@
 """Local settings and responses for the desktop app's own loopback origin."""
 
+import json
 import sys
 from base64 import b64encode
 from functools import cache
@@ -45,7 +46,10 @@ def shell_assets():
     ui = Path(__file__).resolve().parent
     if not (ui / "desktop-theme.js").is_file() and not getattr(sys, "frozen", False):
         ui = ui.parent / "build/ui/compiled"
-    return dict(theme_script=(ui / "desktop-theme.js").read_text(encoding="utf-8"),
+    info_path = Path(__file__).with_name("build-info.json")
+    info = json.loads(info_path.read_text(encoding="utf-8")) if info_path.is_file() else {"Build": "Development checkout"}
+    facts = "".join(f"<dt>{escape(k)}</dt><dd>{escape(v)}</dd>" for k, v in info.items())
+    return dict(build_facts=facts, theme_script=(ui / "desktop-theme.js").read_text(encoding="utf-8"),
                 css=(ui / "desktop.css").read_text(encoding="utf-8"),
                 logo_light=svg("logo-light.svg"), logo_dark=svg("logo-dark.svg"),
                 favicon=svg("favicon-light.svg"), favicon_dark=svg("favicon-dark.svg"))
@@ -68,7 +72,7 @@ def instance_form(server):
             f'<div class="instance-label"><label for="field-instance">Instance connection</label>{help_text}</div>'
             f'<input class="instance-url" id="field-instance" name="instance" type="url" aria-describedby="help-instance" '
             f'value="{value}" placeholder="https://example.org/lodeon/" required>'
-            f'<span class="link-status" role="status" data-connection-status data-connected="{str(connected).lower()}" '
+            f'<span class="ld-assistant-badge" role="status" data-connection-status data-state="{"ready" if connected else "checking"}" '
             f'data-instance="{value}">{"Connected" if connected else "Disconnected"}</span>'
             f'<input type="hidden" name="revision" value="{revision}"></form>')
 
@@ -276,7 +280,7 @@ def model_get(handler):
                            message="Saved. Reconnect your LODEON tab to use these changes." if url.query == "saved" else "")
     if url.path.startswith("/instance-models/edit/"):
         return instance_page(handler, url.path.removeprefix("/instance-models/edit/"),
-                             "Settings saved. Reconnect your LODEON tab to apply them." if url.query == "saved" else "")
+                             "Settings saved. Open Model information in the connected LODEON tab to see the effective values." if url.query == "saved" else "")
     if url.path == "/models/new":
         return model_page(handler)
     if url.path.startswith("/models/edit/"):
@@ -315,7 +319,10 @@ def page(handler, message="", status=200):
     notice = notice_html(message or handler.server.folder_warning, 409 if handler.server.folder_warning else status)
     installed = handler.server.grants.visible_models()
     remote = "".join(
-        f'<div class="model model-entry"><div><div class="model-title">{escape(item["label"])}</div>'
+        f'<div class="model model-entry"><div><div class="model-title">{escape(item["label"])}'
+        + ('<span class="ld-assistant-model-information-selected">Customized</span>'
+           if handler.server.models.instance_settings.get(key) else "")
+        + '</div>'
         f'<small>Instance · {escape(PROVIDERS[item["provider"]])}</small></div>'
         f'<a class="ld-button" href="/instance-models/edit/{quote(key, safe="")}" aria-label="Edit settings for {escape(item["label"], quote=True)}">Edit settings</a></div>'
         for key, item in sorted(installed.items(), key=lambda pair: pair[1]["label"].casefold())

@@ -17,4 +17,4 @@ packages = ["lodeon_customizer"]
 package-dir = {lodeon_customizer = "src"}
 
 [tool.setuptools.package-data]
-lodeon_customizer = ["*.html", "*.css", "*.js"]
+lodeon_customizer = ["*.html", "*.css", "*.js", "build-info.json"]

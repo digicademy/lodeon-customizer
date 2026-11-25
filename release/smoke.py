@@ -67,7 +67,7 @@ def request(method, path, body=None, *, origin=None, grant=None, status=200, for
         conn.close()
 
 
-def check_archive(archive, scratch, system):
+def check_archive(archive, scratch, system, build_info):
     scratch.mkdir(parents=True)
     if system == "macos":
         subprocess.run(["ditto", "-x", "-k", archive, scratch], check=True)
@@ -122,6 +122,9 @@ printf '%s\\n' "$1" "${LD_LIBRARY_PATH-<unset>}" > "$HOME/browser-launch"
                 continue
             if f'name="current" value="{data.resolve()}"' not in html.unescape(page):
                 raise RuntimeError(f"{phase}: unexpected data folder or another instance on port 8765")
+            if any(f"<dt>{html.escape(k)}</dt><dd>{html.escape(v)}</dd>" not in page
+                   for k, v in build_info.items()):
+                raise RuntimeError(f"{phase}: Help does not identify this archive build")
             return
         raise RuntimeError(f"{phase}: desktop exited with status {proc.returncode} before it was ready")
 

@@ -45,7 +45,7 @@ instance. The existing browser evidence and its limits are in the roadmap.
 | POST `/v1/connect` | JSON `{models: boolean}` from the saved instance’s origin. False grants only connection and disconnection. True permits the model routes. | `200 {connectionId, grant, expiresInSeconds}` |
 | GET `/v1/catalog` | Local bearer grant | `200 {revision, models}` |
 | GET `/v1/targets` | Local bearer grant | Models, broker summaries and optional default |
-| POST `/v1/instance-models` | Grant and `{models: [{id, label, provider, sampling}]}` from the current authorized instance status | Per-model sampling overrides for those IDs. Sampling accepts only optional temperature and topP. The roster expires with its grant. |
+| POST `/v1/instance-models` | Grant and `{models: [{id, label, provider, sampling}]}` from the current authorized instance status | Per-model sampling overrides for those IDs. Sampling accepts only optional temperature and topP. The connected tab can repeat this exchange with its authorized instance roster to refresh saved overrides. An empty result clears its previous overrides. The roster expires with its grant. |
 | POST `/v1/broker` | Grant and `{target, revision}` | Selected broker policy and member offers |
 | POST `/v1/invoke` | Grant and invocation | One terminal result envelope |
 | POST `/v1/cancel` | Grant and `{operationId, callId, connectionId}` | `204` after recording cancellation |

@@ -39,6 +39,8 @@ On a Mac, **Apple menu → About This Mac** identifies the chip.
 
 You can change the instance in the header from any model or broker form. Saving the instance returns to the overview. If a form has unsaved edits, you can cancel the switch and finish editing. Choose the **ⓘ** beside a field label to read its help. The same control works with the keyboard.
 
+Choose **Help** (the question mark beside the day/night switch) for setup instructions and **Build information**. When reporting a problem with a **latest** download, include the workflow run and attempt, platform, and the Customizer and Core revisions. These values are recorded when the app is built and work offline. Local builds show their UTC build time and identify working tree changes when built from a Git checkout.
+
 ## Configure a personal model
 
 1. Choose **Models → Personal models → Add model**. Enter a display name, select the provider and enter the provider’s exact model name. For Ollama, use the name of a model installed on your computer. Leave the endpoint blank to use `http://127.0.0.1:11434`. OpenAI and Anthropic also have default endpoints. For an OpenAI-compatible server, enter its API base URL.
@@ -78,8 +80,8 @@ On first launch the app uses the following default folder.
 
 1. Save the instance address and connect from **Settings → Customize Workbench** in that LODEON tab.
 2. Open **Models → Instance models → Refresh list** in the Customizer. Choose **Edit settings** beside a model.
-3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**, then disconnect and reconnect the LODEON tab.
-4. Select the same instance model in LODEON. **Model information** shows the effective values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
+3. Enter your **Temperature** or **Top P**. Each field shows the current instance value. A blank field inherits that value. Choose **Save settings**. The instance list marks the model **Customized** while it has at least one saved override.
+4. Select the same instance model in LODEON. **Settings → Model information** shows the effective values when opened and refreshes them while visible. Returning to the connected LODEON window also refreshes the sampling settings. Clearing both overrides restores the instance values. The instance runs the model with its own provider credentials and limits. A personal broker also uses these values when it selects that instance worker. Disconnect to use the instance defaults again.
 
 The Customizer saves these overrides under `instanceModelSettings` in `.data/customizer.yml`, keyed by the saved instance URL and model ID. Projects retain the ordinary model ID. A changed list of available instance models requires a new connection.
 
@@ -93,7 +95,7 @@ Choose **Save broker** to apply your assignments. If any task uses routing, ente
 
 ## Reconnect, disconnect or quit
 
-Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. The local header shows **Connected** while there is an active grant for the saved instance. It returns to **Disconnected** after the last grant ends. The connected tab highlights **Customize Workbench** in the Settings menu. After an Editor reload, a local configuration change or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
+Keep the app running while using Chat, **Check Tools** or suggested questions with a personal model. Each LODEON tab connects separately. The local header shows **Connected** while there is an active grant for the saved instance. It returns to **Disconnected** after the last grant ends. The connected tab highlights **Customize Workbench** in the Settings menu. After an Editor reload, a change to the personal model or broker catalog, a package reload or an app restart, return to **Settings → Customize Workbench** and reconnect. Use **Disconnect** first if the tab still shows a connection. The model selector and **Model information** show personal and instance targets in alphabetical order.
 
 If **Connect** fails, open the Customizer again. Its settings page is at `http://127.0.0.1:8765/`. Check the saved instance address and the browser's local-network permission. If the connection succeeds but the selector has no personal model, check that you added a profile and applied the file as described above.
 

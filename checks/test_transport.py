@@ -94,11 +94,13 @@ class TransportTest(unittest.TestCase):
             return request("POST", "/v1/instance-models", origin=origin, payload=shared, token=grant)
         self.assertEqual(share(token), (200, "{}"))
         self.assertIn("Hosted model", request("GET", "/")[1])
+        self.assertNotIn(">Customized<", request("GET", "/")[1])
         revision = lambda: config_revision(config, config.read_bytes())
         form = {"profile": "worker", "temperature": "0", "topP": "", "revision": config_revision(private, private.read_bytes())}
         self.assertEqual(request("POST", "/instance-model", origin=origin, form=form)[0], 403)
         self.assertEqual(request("POST", "/instance-model", origin=local, form=form)[0], 303)
         self.assertEqual(json.loads(share(token)[1]), {"worker": {"temperature": 0}})
+        self.assertIn(">Customized<", request("GET", "/")[1])
         broker = broker_form.values_for("", {}, None)
         broker.update(label="Catalog broker", members="worker | Hosted model", objective="Choose a worker",
                       revision=revision(), **{"query-strategy": "routed"})

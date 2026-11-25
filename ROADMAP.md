@@ -578,6 +578,10 @@ The selected directory is an installable LODEON package. Local package edits the
 
 Verification against the regular Core assembler covered a generated single-model package and the same package with a routed broker and its Markdown prompt. Both resolved with the configured default and excluded the private state and credentials. A local Brave session exercised manifest editing, disk reload and both connection transitions at widths from 320 to 1440 pixels.
 
+### Desktop help and saved sampling settings
+
+Help beside the day/night switch contains an offline setup guide and the build identity baked into the native archive. Published builds identify the workflow run and attempt, app version, channel, platform, UTC build time and the two source revisions. The archive smoke check compares the displayed values with that build’s inputs. The header uses the Editor’s Ready badge for a connection. Instance rows mark saved sampling overrides with **Customized**, including an explicit zero. A Linux ARM64 rolling-channel test archive with fixture CI metadata passed the extracted-app build identification, restart and provider checks.
+
 ## Proposed next settings areas
 
 These are design proposals for review. The current desktop capability is personal models. Each new capability needs its own permission and a separately approved Core interface before it can be connected to an instance.

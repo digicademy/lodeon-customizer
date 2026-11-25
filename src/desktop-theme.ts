@@ -1,5 +1,8 @@
 import { bindThemeToggle, initializeTheme, renderThemeToggleButton } from "./ui/theme";
 
+import { CircleHelp, X } from "lucide";
+import { renderIcon } from "./ui/icons";
+
 const theme = initializeTheme();
 document.addEventListener("DOMContentLoaded", () => {
   const slot = document.querySelector<HTMLElement>("[data-customizer-theme]");
@@ -8,6 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
     key === "topbar.themeSwitchDay" ? "Switch to day theme" : "Switch to night theme";
   slot.innerHTML = renderThemeToggleButton(theme, text);
   bindThemeToggle(slot, text);
+  const help = document.querySelector<HTMLDialogElement>("#customizer-help")!;
+  const helpButton = document.querySelector<HTMLButtonElement>("[data-help]")!;
+  helpButton.innerHTML = renderIcon(CircleHelp);
+  help.querySelector("[data-help-close]")!.innerHTML = renderIcon(X);
+  helpButton.addEventListener("click", () => help.showModal());
+  help.addEventListener("close", () => helpButton.focus());
+  help.addEventListener("click", event => { if (event.target === help) help.close(); });
+
   const favicon = document.querySelector<HTMLLinkElement>("link[rel=icon]");
   if (favicon) {
     const sync = () => {
@@ -46,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       pending = false;
     }
-    status.dataset.connected = String(connected);
+    status.dataset.state = connected ? "ready" : "checking";
     if (status.textContent !== label) status.textContent = label;
   }
   document.addEventListener("visibilitychange", refresh);
